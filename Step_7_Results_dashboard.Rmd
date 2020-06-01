@@ -25,9 +25,9 @@ library(units)
 library(cowplot)
 
 #direct.fun <- "Y:/Offshore/Assessment/"
-direct.fun <- "D:/Github/"; dir.ftmp <- direct.fun
+direct.fun <- direct.proj <- "D:/Github/"; dir.ftmp <- direct.fun
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
-direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
+#direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
 
 
 source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R",sep=""))
@@ -46,13 +46,13 @@ factor.2.number <- function(x) {as.numeric(levels(x))[x]}
 
 
 # Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
-load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_mesh_input_data.RData"))
 #load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 #load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
 # Here I load the Prediction mesh/grid.
-load(file = "D:/NAS/Projects/GB_time_area_closure_SPERA/Results/Prediction_mesh.RData")
+load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_mesh.RData"))
 # Here I load results from the models with the full predictive fields.
-load(paste0(direct.proj,"Results/Prediction_fields_all_models.RData"))
+load(paste0(direct.proj,"Paper_2_SDMs/data//Prediction_fields_all_models.RData"))
 # Just in case these get overwritten
 direct.proj <- dir.tmp 
 direct.fun <- dir.ftmp 
