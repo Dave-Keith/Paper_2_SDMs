@@ -1,0 +1,180 @@
+---
+title: "Dashboard Test"
+output: 
+  flexdashboard::flex_dashboard:
+  orientation: columns
+  vertical_layout: fill
+  # storyboard: true
+runtime: shiny
+---
+
+
+```{r global, include=FALSE}
+################Section 1    Load data and functions ########################## ################Section 1    Load data and functions ##########
+library(shiny)
+library(flexdashboard)
+library(readr)
+library(leaflet)
+library(DT)
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(sf)
+library(data.table)
+library(units)
+library(cowplot)
+
+#direct.fun <- "Y:/Offshore/Assessment/"
+direct.fun <- "D:/Github/"; dir.ftmp <- direct.fun
+#direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
+direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
+
+
+source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R",sep=""))
+source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/convert_coords.R",sep=""))
+source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/add_alpha_function.r",sep=""))
+source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/combine_shapefile_layers.R",sep=""))
+source(paste(direct.fun,"Offshore/Assessment_fns/DK/Maps/centre_of_gravity.R",sep=""))
+source(paste0(direct.fun,"Paper_2_SDMs/predict_fields.R"))
+
+# A function for calculating the cpo for a model...
+fcpo <- function(m, id)
+  -sum(log(m$cpo$cpo[id]), na.rm=TRUE) # Good to log this because of distributional reasons.
+# Convert a factor to a number
+factor.2.number <- function(x) {as.numeric(levels(x))[x]}
+
+
+
+# Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
+load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
+#load(paste0(direct.proj,"Data/INLA_meshes.RData"))
+#load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+# Here I load the Prediction mesh/grid.
+load(file = "D:/NAS/Projects/GB_time_area_closure_SPERA/Results/Prediction_mesh.RData")
+# Here I load results from the models with the full predictive fields.
+load(paste0(direct.proj,"Results/Prediction_fields_all_models.RData"))
+# Just in case these get overwritten
+direct.proj <- dir.tmp 
+direct.fun <- dir.ftmp 
+
+# for testing purposes...
+#input <- data.frame(prob = 0.8, species = "cod", survey = "RV_survey")
+bp <- pecjector(area="GOM",plot=F,direct_fns = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05)
+ 
+
+``` 
+
+Column {data-width=200 .sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+sliderInput("prob", label = "Encounter Probability",
+            min = 0, max = 1, value = 0.8, step = 0.05)
+radioButtons("species","Which Species", 
+            choices = c("Atlantic cod" = "cod",
+                        "Yellowtail flounder" = "yt"))
+selectInput("survey","Which Survey", 
+            choices = c("NMFS Spring" = "nmfs-spring_survey",
+                        "NMFS Fall" = "nmfs-fall_survey",
+                        "DFO RV" = "RV_survey"))
+
+# So we can do our reactive stuff here, which is potentially nice, this is essentially my 'conductive element"
+res <- reactive({
+            res <- pred.dat[[paste0(input$species,"_PA ",input$survey,sep="")]]
+            n.eras <- length(unique(res$years_5))
+            eras <- factor.2.number(unique(res$years_5))
+            # So the key is the last thing is the dataframe we want...
+            st_geometry(res) <- st_geometry(rep(mesh.grid,n.eras)) 
+            data.frame(res)
+            for(n in min(eras):max(eras))
+            {
+              yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(max = max(year)),3,4))
+              if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+              res$yrs[res$years_5==n] <- yrs
+            }
+            # # So calculating area is smart using that set units, though they are all idenitcal...
+             res$area <- res %>% st_area() %>% set_units("km^2")
+             res <- res %>% filter(pred >= input$prob)
+             res
+            # 
+            # 
+            # # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
+            
+        })
+
+
+ cog <- reactive({
+            cog <- as.data.table(res())[,cog.calc(X,Y,pred), by = yrs]
+            cog <- st_as_sf(cog,coords = c('x','y'), crs= st_crs(mesh.grid), remove=F)
+            
+        })
+ 
+ area.era <- reactive({
+                  area.era <- data.frame(res()) %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+                  #area.era
+                  loc.text = c(600000,4450000) # I might make this an input, but we'll see...
+                  area.era$X <- loc.text[1] 
+                  area.era$Y <- loc.text[2]
+                  area.era <- st_as_sf(area.era,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
+                  n.eras <- length(unique(res()$years_5))
+                  lab <- NA
+                  for(k in 1:n.eras) lab[k] <- paste0("Area==~",round(area.era$tot.area[k],digits=0),"*km^2")
+                  area.era$lab <- lab
+                  area.era
+              })
+
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Center of Gravity
+
+```{r}
+
+renderPlotly({
+  
+   cog.sd.plt <-  ggplot(data = cog()) + geom_label(aes(x=x, y = y+3.5*se.y,label=substr(yrs,3,8)),size=4) + 
+      geom_errorbar(aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0)  + 
+      #geom_errorbar(aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0) # + 
+      theme_bw() + xlab("") + ylab("")
+   ggplotly(cog.sd.plt)
+  
+})
+```
+
+### Area
+
+```{r}
+
+renderPlot({
+   # Set up my colour ramp for the maps, stolen from pectinid
+          col <- addalpha(pals::viridis(100),1)
+          brk <- seq(input$prob,1,by=0.05)
+          lims <- range(brk)
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          
+    
+    # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+    plt<-bp + geom_sf(data = res()  ,aes(fill = pred,colour=pred))+ 
+      facet_wrap(~as.factor(yrs)) + 
+      coord_sf(datum=32619) + sf + sc + theme_map() +
+      geom_sf_text(data = area.era() , aes(label = lab),parse=T) +
+      #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
+      #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
+      # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
+      ggtitle(paste0("Encounter probability \u2265 ",input$prob," - ", input$species, " - ", input$survey)) 
+    plt
+})
+
+```
+
+
+
+
+
+
+          

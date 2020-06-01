@@ -1,0 +1,216 @@
+---
+title: "Shiny Based Presentation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    source_code: embed
+    social: menu
+    theme: flatly
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+direct.fun <- "D:/Github/Offshore/Assessment_fns/DK/"; dir.ftmp <- direct.fun
+#direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
+direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
+
+library(INLA)
+library(boot)
+library(fields)
+require(tidyverse)
+require(reshape2)
+require(viridis)
+require(maptools)
+library(maps)
+require(gridExtra)
+library(sp)
+library(rgeos)
+library(splancs)
+library(marmap)
+library(dplyr)
+library(spatstat)
+library(gridBase)
+library(animation)
+library(sf)
+library(raster)
+library(rgdal)
+library(maptools)
+library(mapdata)
+library(sdmTMB)
+library(caret)
+library(data.table)
+library(units)
+library(crosstalk)
+library(shiny)
+library(flexdashboard)
+
+load(file = paste0(direct.proj,"Results/Prediction_mesh.RData"))
+source(paste0(direct.fun,"Maps/centre_of_gravity.R"))
+source(paste0(direct.fun,"Maps/pectinid_projector_sf.R"))
+#
+ pred.op.tmp <- NULL
+ load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_cod_PA_nmfs-spring.RData"))
+ pred.op.tmp[['cod_PA nmfs-spring_survey']]<- pred.output.pred$`cod_PA nmfs-spring_survey`
+#
+# #load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_cod_PA_nmfs-fall.RData"))
+# #pred.op.tmp[['cod_PA nmfs-fall_survey']]<- pred.output.pred$`cod_PA nmfs-fall_survey`
+# #load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_cod_PA_RV.RData"))
+# #pred.op.tmp[['cod_PA RV_survey']]<- pred.output.pred$`cod_PA RV_survey`
+# load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_yt_PA_nmfs-spring.RData"))
+# pred.op.tmp[['yt_PA nmfs-spring_survey']]<- pred.output.pred$`yt_PA nmfs-spring_survey`
+# load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_yt_PA_nmfs-fall.RData"))
+# pred.op.tmp[['yt_PA nmfs-fall_survey']]<- pred.output.pred$`yt_PA nmfs-fall_survey`
+# #load(paste0(direct.proj,"Results/INLA_output_full_predicted_field_yt_PA_RV.RData"))
+# #pred.op.tmp[['yt_PA nmfs-RV_survey']]<- pred.output.pred$`yt_PA nmfs-RV_survey`
+# # Once we have all the models run I can toss the above hack...
+#
+#
+# # I know I load this at the start, but a reminder that we need this for inside this function to get the dat.final object...
+# load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
+#
+#
+loc.text = c(600000,4450000)
+pred.dat <- pred.op.tmp[[1]]
+n.pred.mods <- length(pred.dat)
+p.grid <- mesh.grid
+p.crs <- st_crs(p.grid)
+# bp <- pecjector(area="GOM",plot=F,direct_fns = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05)
+# # Set up my colour ramp for the maps, stolen from pectinid
+ col <- addalpha(pals::viridis(100),1)
+ brk <- seq(prob,1,by=0.05)
+ lims <- range(brk)
+ sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+ sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+#
+# for(i in 1:n.pred.mods) {
+i=1
+ res <- pred.op.tmp[[i]]
+
+ n.eras <- length(unique(res$years_5))
+# # Get the species
+ if(grepl("yt",res$species[1])) sp <- "YT"
+ if(grepl("cod",res$species[1])) sp <- "cod"
+# # Get the survey name
+ surv <- res$survey[1]
+#
+# # This puts the mesh grids in here instead of using the points in the object, this just makes for a nicer output object.
+ if(!is.null(p.grid)) st_geometry(res) <- st_geometry(rep(p.grid,n.eras))
+# # We can also just use the points in the object if we don't specify the prediction grid.
+ if(is.null(p.grid)) res <- st_as_sf(res,coords = c("X","Y"),crs = p.crs)
+#
+#
+for(n in 1:n.eras)
+{
+  yrs <- paste0(substr(dat.final %>% filter(years_5 == n & survey == surv) %>% summarise(min = min(year)),3,4),"-",
+                substr(dat.final %>% filter(years_5 == n & survey == surv) %>% summarise(max = max(year)),3,4))
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  res$yrs[res$years_5==n] <- yrs
+}
+# So calculating area is smart using that set units, though they are all idenitcal...
+res$area <- res %>% st_area() %>% set_units("km^2")
+#
+#
+# # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
+# cog <- as.data.table(res %>% filter(pred >= 0))[,cog.calc(X,Y,pred), by = yrs]
+# cog <- st_as_sf(cog,coords = c('x','y'), crs= p.crs, remove=F)
+# 
+# # Here I'm making a column name that is nice year values (for the figure title) rather than just era 1, etc...
+# 
+# # # Now get the area in which the probability of encounter is >= prob
+# # area.era <- data.frame(res) %>% dplyr::filter(pred >= prob) %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+# # #area.era
+# # area.era$X <- loc.text[1]
+# # area.era$Y <- loc.text[2]
+# # area.era <- st_as_sf(area.era,crs=p.crs,coords = c("X","Y"), remove=F)
+# 
+# res <- res %>% left_join(data.frame(area.era) %>% dplyr::select(yrs,tot.area),by= "yrs")
+
+# # Add the area to the res object so it's easy to plot...
+# res$tot.area <- round(res$tot.area,digits=0)
+#
+# mn.prop <- data.frame(res) %>% group_by(yrs) %>% dplyr::summarise(mn = mean(pred),med = median(pred), sd = sd(pred))
+# mn.prop
+#
+# cog.map.plt <-  bp + geom_sf_text(data = cog, aes(label=substr(yrs,3,8)),size=2) +
+#               #geom_errorbar(data = cog,aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0)  +
+#               #geom_errorbar(data = cog,aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0)  +
+#                  theme_bw()
+#
+#  cog.sd.plt <-  ggplot(data = cog) + geom_label(aes(x=x, y = y+3.5*se.y,label=substr(yrs,3,8)),size=4) +
+#                            geom_errorbar(aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0)  +
+#                            geom_errorbar(aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0)  +
+#                            theme_bw() + xlab("") + ylab("")
+# #
+# #windows(11,11)
+# saveGIF(
+#   {
+#     ani.options(interval = 2, nmax = 50,ffmpeg = 'C:/Program Files/ImageMagick-7.0.8-Q16/ffmpeg.exe')
+#     for (p in 1:n.eras)
+#     {
+#       # Note that the summar.fixed works because our covariates are treated as random walks which makes them random effects so our only fixed term
+#       # is always just our intercept.
+#       res.t <- res %>% filter(years_5 == p)
+#       area.t <- area.era %>% filter(yrs ==res.t$yrs[1])
+#       area.t$tot.area <- round(area.t$tot.area,digits =0)
+#       plt<-bp + geom_sf(data = res.t %>% dplyr::filter(pred >= prob),aes(fill = pred,colour=pred))+ # facet_wrap(~years_5) +
+#         coord_sf(datum=p.crs) + sf + sc +
+#         #geom_sf_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
+#         annotate('text',x=area.t$X,y=area.t$Y, label=as.expression(bquote(Area== .(area.t$tot.area)~km^2)),parse=T) +
+#         ggtitle(paste0("Encounter probability \u2265 ",prob,": ",sp,"-",surv,' survey(',area.t$yrs[1],")"))
+#       print(plt)
+#       ani.pause()
+#     }
+#   }, movie.name = paste0(direct.proj,'Results/Figures/INLA/Encounter_probability_lte_',prob,"-",sp,"-",surv,'_survey.gif'), ani.width = 800, ani.height = 800)
+#
+# # Now to get a fancy label set up we can do this, then attached this to the area.era object
+# lab <- NA
+# for(k in 1:n.eras) lab[k] <- paste0("Area==~",round(area.era$tot.area[k],digits=0),"*km^2")
+# area.era$lab <- lab
+#
+# # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+# plt<-bp + geom_sf(data = res %>% dplyr::filter(pred >= prob ) ,aes(fill = pred,colour=pred))+
+#   facet_wrap(~as.factor(yrs)) +
+#   coord_sf(datum=p.crs) + sf + sc + theme_map() +
+#   geom_sf_text(data = area.era , aes(label = lab),parse=T) +
+#   #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
+#   #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
+#   # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
+#   ggtitle(paste0("Encounter probability \u2265 ",prob," - ", sp, " - ", surv, " survey"))
+# ggsave(plt, file = paste0(direct.proj,'Results/Figures/INLA/Encounter_probability_lte_',prob,"-",sp,"-",surv,'_survey.png'),width = 11,height = 11,units = 'in')
+#
+#   }
+
+## Shiny Presentation
+```
+
+Sidebar {.sidebar data-width=350}
+======================================================================
+
+```{r}
+selectInput('prob', 'Encounter Probability', choices = seq(0,1,by=0.1),selected = 0.5)
+#selectInput('xcol', 'X Variable', c("age"))
+#selectInput('ycol', 'Y Variable', c("store_exp","online_exp","store_trans","online_trans"))
+```
+
+Column {}
+======================================================================
+Row {data-width=650}
+-----------------------------------------------------------------------
+### Transactional Behavior by Age
+
+```{r Inputs}
+# Now get the area in which the probability of encounter is >= prob
+area.era <- reactive({data.frame(res) %>% dplyr::filter(pred >= 0.1) %>% group_by(yrs) %>% summarize(tot.area = sum(area))})
+renderText({paste("Here is some text, prob =",input$prob)})
+ # a.era <- st_as_sf(a.era,crs=p.crs,coords = c("X","Y"), remove=F)
+ # rs <- res %>% left_join(data.frame(a.era) %>% dplyr::select(yrs,tot.area),by= "yrs")
+
+```
+
