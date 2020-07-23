@@ -64,7 +64,7 @@ library(units)
 source(paste(direct.fun,"Maps/pectinid_projector_sf.R",sep=""))
 source(paste(direct.fun,"Maps/convert_coords.R",sep=""))
 source(paste(direct.fun,"Maps/add_alpha_function.r",sep=""))
-source(paste(direct.fun,"Maps/combine_shapefile_layers.R",sep=""))
+source(paste(direct.fun,"Maps/combo_shp.R",sep=""))
 source(paste(direct.fun,"Maps/centre_of_gravity.R",sep=""))
 # A function for calculating the cpo for a model...
 fcpo <- function(m, id)
@@ -75,6 +75,7 @@ factor.2.number <- function(x) {as.numeric(levels(x))[x]}
 load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+load(paste0(direct.proj,"Data/2017_2020_data/Survey_data_with_covars_2017_2020.RData"))
 
 #load(paste0(direct.proj,"Results/INLA_st_3_output.RData"))
 direct.proj <- dir.tmp 
@@ -364,35 +365,61 @@ ggplot(cpo) + geom_text(aes(x=uniqunat,y=pit.ordered,label=index),size=0.3) + fa
 ggplot(cpo) + geom_text(aes(x=fitted,y=pit,label=index),size=0.3) + facet_wrap(~species+st)
 
 # We can also plot the difference in the CPO indexs to compare models, for example Cod 5 vs 3 year fields...
-cod.diff <- cpo %>% dplyr::filter(species == "cod_PA" & st == 5) %>% dplyr::select(cpo)-
-            cpo %>% dplyr::filter(species == "cod_PA" & st == 3) %>% dplyr::select(cpo)
-yt.diff <- cpo %>% dplyr::filter(species == "yt_PA" & st == 5) %>% dplyr::select(cpo)-
-           cpo %>% dplyr::filter(species == "yt_PA" & st == 3) %>% dplyr::select(cpo)
+cpo.mods <- c(10,5,3)
+cod.diff <- cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[2]) %>% dplyr::select(cpo)-
+            cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[3]) %>% dplyr::select(cpo)
+cod.diff$model <- "Cod RV survey"
+cod.diff$comp <- "5 year vs 3 year"
+yt.diff <- cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[2]) %>% dplyr::select(cpo)-
+           cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[3]) %>% dplyr::select(cpo)
+yt.diff$model <- "YT NMFS survey"
+yt.diff$comp <- "5 year vs 3 year"
 # 10 to 3 difference
-cod.diff.10.3 <- cpo %>% dplyr::filter(species == "cod_PA" & st == 10) %>% dplyr::select(cpo)-
-  cpo %>% dplyr::filter(species == "cod_PA" & st == 3) %>% dplyr::select(cpo)
-yt.diff.10.3 <- cpo %>% dplyr::filter(species == "yt_PA" & st == 10) %>% dplyr::select(cpo)-
-  cpo %>% dplyr::filter(species == "yt_PA" & st == 3) %>% dplyr::select(cpo)
+cod.diff.10.3 <- cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[1]) %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[3]) %>% dplyr::select(cpo)
+cod.diff.10.3$model <- "Cod RV survey"
+cod.diff.10.3$comp <- "10 year vs 3 year"
+yt.diff.10.3 <- cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[1]) %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[3]) %>% dplyr::select(cpo)
+yt.diff.10.3$model <- "YT NMFS survey"
+yt.diff.10.3$comp <- "10 year vs 3 year"
+# 10 to 5 difference
+cod.diff.10.5 <- cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[1]) %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & st == cpo.mods[2]) %>% dplyr::select(cpo)
+cod.diff.10.5$model <- "Cod RV survey"
+cod.diff.10.5$comp <- "10 year vs 5 year"
+yt.diff.10.5 <- cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[1]) %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & st == cpo.mods[2]) %>% dplyr::select(cpo)
+yt.diff.10.5$model <- "YT NMFS survey"
+yt.diff.10.5$comp <- "10 year vs 5 year"
 
+cpo.comps <- rbind(cod.diff,cod.diff.10.3,cod.diff.10.5,
+                   yt.diff,yt.diff.10.3,yt.diff.10.5)
+mns <- cpo.comps %>% group_by(model,comp) %>% dplyr::summarise(mn = median(cpo))
+cpo.comps.fields <- left_join(cpo.comps,mns,by = c('model','comp'))
+#Postive values would suggest that the first model is better than the second you can see the difference is pretty small, but it is slightly in favour of 5 for
+# cod, and yellowtail for 3 year
 
+ggplot(cpo.comps) + geom_histogram(aes(cpo))  + geom_vline(aes(xintercept = mn)) + facet_wrap(~model + comp,nrow=3,dir='v') + 
+                    geom_text(x = 0, y= 900,aes(label = paste("Median =", signif(mn,digits=2)))) + theme_bw() + ylim(c(0,900))
 # We can see what the RMSE is for each of these models too...
 
-mod.output <- do.call('rbind',mod.output)
+mod.output.fields <- do.call('rbind',mod.output)
 mod.rmse <- mod.output %>% group_by(model,species,st.era) %>% summarise(RMSE = RMSE(fitted,response), MAE = MAE(fitted,response))
 mod.rmse
 
+# Grab the info from the model diagnostics
+mod.diag.fields <- do.call('rbind',mod.diagnostics)
+mod.diag.fields <- left_join(mod.diag.fields,mod.rmse,by = c('model','species',"st.era"))
+mod.diag.fields <- mod.diag.fields %>% group_by(species) %>% mutate(min_2 = (min(dic)+2),min_10 = (min(dic) + 10))
+# Grab the random field too..
+rand.field.fields <- do.call('rbind',rand.field)
 
-#Postive values would suggest that the 5 year is better than the 3 year, you can see the difference is pretty small, but it is slightly in favour of 5 for
-# cod, and yellowtail for 3 year
-hist(cod.diff$cpo)
-hist(yt.diff$cpo)
-summary(cod.diff$cpo)
-summary(yt.diff$cpo)
-# And the 10 to 3, again positives are 10 year is better, negatives favour the 3 is better...
-hist(cod.diff.10.3$cpo)
-hist(yt.diff.10.3$cpo)
-summary(cod.diff.10.3$cpo)
-summary(yt.diff.10.3$cpo)
+ggplot(mod.diag.fields) + geom_point(aes(y =dic,x=as.factor(st.era))) + 
+                   geom_hline(aes(yintercept = min_2), col = 'red',size=1.25) +
+                   geom_hline(aes(yintercept = min_10), col = 'blue',size=1.25) + 
+                   facet_wrap(~species,scales = 'free_y') + theme_bw()
+#save(cpo.comps.fields,mod.diag.fields,mod.output.fields,rand.field.fields,file = paste0(direct.proj,"Results/INLA_st_3_5_10_model_diagnostics.RData"))
 
 
 ############################# 
@@ -647,8 +674,6 @@ for(mod in 1:num.mods)
   } # end for(j in 1:num.species)
 } # end for(mod in 1:num.mods)
 
-
-
 n.cod <- nrow(dat.val %>% dplyr::filter(survey == "RV"))
 n.yt <- nrow(dat.val %>% dplyr::filter(survey == "nmfs-spring"))
 
@@ -685,21 +710,75 @@ ggplot(cpo) + geom_text(aes(x=uniqunat,y=pit.ordered,label=index),size=0.3) + fa
 # but I'm not 100% sure.
 ggplot(cpo) + geom_text(aes(x=fitted,y=pit,label=index),size=0.3) + facet_wrap(~species+st)
 
-# We can also plot the difference in the CPO indexs to compare models, for example Cod 5 vs 3 year fields...
-cod.diff <- cpo %>% dplyr::filter(species == "cod_PA" & model == "depth_sst_cod") %>% dplyr::select(cpo)-
-  cpo %>% dplyr::filter(species == "cod_PA" & model == "intercept_cod") %>% dplyr::select(cpo)
-yt.diff <- cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_sst_sed_yt") %>% dplyr::select(cpo)-
-  cpo %>% dplyr::filter(species == "yt_PA" & model == "intercept_yt") %>% dplyr::select(cpo)
+# We can also plot the difference in the CPO indexs to compare models, for example Cod 5 vs 3 year fields... 
+# Positive means first model is better than second, these are almost always negative indicating the more complex models are better.
+cod.int.sst <- cpo %>% dplyr::filter(species == "cod_PA" & model == "intercept_cod") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & model == "sst_cod") %>% dplyr::select(cpo)
+cod.int.sst$model <- "Int vs SST"
+cod.int.sst$species <- "Cod"
+cod.sst.sstchl <- cpo %>% dplyr::filter(species == "cod_PA" & model == "sst_cod") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & model == "sst_chl_cod") %>% dplyr::select(cpo)
+cod.sst.sstchl$model <- "SST vs SST+Chl"
+cod.sst.sstchl$species <- "Cod"
+cod.sst.sstdepth <- cpo %>% dplyr::filter(species == "cod_PA" & model == "sst_cod") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & model == "depth_sst_cod") %>% dplyr::select(cpo)
+cod.sst.sstdepth$model <- "SST vs SST+Dep"
+cod.sst.sstdepth$species <- "Cod"
+cod.sstchl.sstdepth <- cpo %>% dplyr::filter(species == "cod_PA" & model == "sst_chl_cod") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "cod_PA" & model == "depth_sst_cod") %>% dplyr::select(cpo)
+cod.sstchl.sstdepth$model <- "SST+Chl vs SST+Dep"
+cod.sstchl.sstdepth$species <- "Cod"
+cod.cpo.comps <- rbind(cod.int.sst,cod.sst.sstchl,cod.sst.sstdepth,cod.sstchl.sstdepth)
+  
+# Only need 3 comparisons here because there are no models at the same level...
+yt.int.depth <- cpo %>% dplyr::filter(species == "yt_PA" & model == "intercept_yt") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_yt") %>% dplyr::select(cpo)
+yt.int.depth$model <- "Int vs Dep"
+yt.int.depth$species <- "Yellowtail"
+yt.depth.depthsst <- cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_yt") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_sst_yt") %>% dplyr::select(cpo)
+yt.depth.depthsst$model <- "Dep vs Dep+SST"
+yt.depth.depthsst$species <- "Yellowtail"
+yt.depth.depthsstsed <- cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_yt") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_sst_sed_yt") %>% dplyr::select(cpo)
+yt.depth.depthsstsed$model <- "Dep vs Dep+SST+Sed"
+yt.depth.depthsstsed$species <- "Yellowtail"
+yt.depthsst.depthsstsed <- cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_sst_yt") %>% dplyr::select(cpo)-
+  cpo %>% dplyr::filter(species == "yt_PA" & model == "depth_sst_sed_yt") %>% dplyr::select(cpo)
+yt.depthsst.depthsstsed$model <- "Dep+SST vs Dep+SST+Sed"
+yt.depthsst.depthsstsed$species <- "Yellowtail"
 
 
-#Postive values would suggest the first model (full) is better than the second (intercept or whatever )
-hist(cod.diff$cpo)
-hist(yt.diff$cpo)
-summary(cod.diff$cpo)
-summary(yt.diff$cpo)
+yt.cpo.comps  <- rbind(yt.int.depth,yt.depth.depthsst,yt.depth.depthsstsed,yt.depthsst.depthsstsed)
+
+cpo.comps.fixed <- rbind(cod.cpo.comps,yt.cpo.comps)
+
+mns <- cpo.comps.fixed %>% group_by(model,species) %>% dplyr::summarise(mn = median(cpo))
+cpo.comps.fixed <- left_join(cpo.comps.fixed,mns,by = c('model','species'))
+#Postive values would suggest that the first model is better than the second you can see the difference is pretty small, but it is slightly in favour of 5 for
+# cod, and yellowtail for 3 year
+
+ggplot(cpo.comps.fixed) + geom_histogram(aes(cpo))  + geom_vline(aes(xintercept = mn)) + facet_wrap(~model + species,nrow=3,dir='v',scales = "free_y") + 
+  geom_text(x = -0.3, y= 250,aes(label = paste("Median =", signif(mn,digits=2)))) + theme_bw() #+ ylim(c(0,900))
+# We can see what the RMSE is for each of these models too...
+
+mod.output.fixed <- do.call('rbind',mod.output.fe)
+mod.rmse.fixed <- mod.output.fixed %>% group_by(model,species) %>% summarise(RMSE = RMSE(fitted,response), MAE = MAE(fitted,response))
+mod.rmse.fixed
+
+# Grab the info from the model diagnostics
+mod.diag.fixed <- do.call('rbind',mod.diagnostics.fe)
+mod.diag.fixed <- mod.diag.fixed[order(mod.diag.fixed$dic),]
+mod.diag.fixed <- left_join(mod.diag.fixed,mod.rmse.fixed,by = c('model','species'))
+
+mod.diag.fixed <- mod.diag.fixed %>% group_by(species) %>% mutate(min_2 = (min(dic)+2),min_10 = (min(dic) + 10))
+# Grab the random field too..
+rand.field.fixed <- do.call('rbind',rand.field.fe)
 
 
-#save.image(paste0(direct.proj,"Results/INLA_fixed_effect_model_validation_cpo_output.RData"))
+#save(cpo.comps.fixed,mod.diag.fixed,mod.output.fixed,rand.field.fixed,file = paste0(direct.proj,"Results/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+#load(paste0(direct.proj,"Results/INLA_fixed_effect_model_validation_cpo_output.RData"))
+
 ############################# 
 
 
@@ -982,6 +1061,18 @@ for(s in 1:num.species)
   } # end folds
 } # end species
 
+#############
+# This is not related to the below, you'd run this if re-running the model...
+pred.fd <- do.call('rbind',pred.res.fd)
+mod.fd <- do.call('rbind',mod.output.fd)
+mod.diag <- do.call("rbind",mod.diagnostics.fd)
+mod.fd$fold <- as.factor(mod.fd$fold)
+pred.fd$fold <- as.factor(pred.fd$fold)
+
+#save.image(paste0(direct.proj,"Results/INLA_model_5_fold_cross_valiation.RData"))
+#load(paste0(direct.proj,"Results/INLA_model_5_fold_cross_valiation.RData"))
+
+
 # So I screwed up dat indexing when I ran these models the first time, to get everything square I need to do this for each fold...
 # Now I need to repeat for the model data, roles eyes!!
 # If I run the model again I wouldn't need to do any of this commented stuff.  I also have the model output saved so this is all taken care of
@@ -1020,45 +1111,29 @@ for(s in 1:num.species)
 # mod.fd$response <- mod.fd$cod_PA
 # pred.fd$response <- pred.fd$cod_PA
 
-pred.fd <- do.call('rbind',pred.res.fd)
-mod.fd <- do.call('rbind',mod.output.fd)
-mod.diag <- do.call("rbind",mod.diagnostics.fd)
-mod.fd$fold <- as.factor(mod.fd$fold)
-pred.fd$fold <- as.factor(pred.fd$fold)
 
-#save.image(paste0(direct.proj,"Results/INLA_model_5_fold_cross_valiation.RData"))
-#load(paste0(direct.proj,"Results/INLA_model_5_fold_cross_valiation_fixed.RData"))
 
 
 # So this tells me that there isn't much prediction bias in any of the models.  The standard deviation of the 
 # predictions is higher than the standard deviation of the model itself which makes sense
-pred.error <- pred.fd %>% group_by(model,fold,model.id) %>% summarise(mn = mean(pred.err), sd = sd(pred.err))
-# While if anything here it suggests that the model would tend to have a small biased towards not predicting scallop when there are there.
-mod.resid <- mod.fd %>% group_by(model,fold,model.id) %>% summarise(mn = mean(resid),sd =sd(resid))
-
-
-# I wonder if the bias in predictions is related to any one covariate...
-ggplot(pred.fd) + geom_point(aes(y = pred.err, x = comldepth,colour= fold),size=1,alpha=0.2) + facet_wrap(~model.id) #+ geom_smooth()
-ggplot(mod.fd) + geom_point(aes(y = resid, x = depth,colour= fold),size=1,alpha=0.2) + facet_wrap(~model.id)
-ggplot(pred.fd) + geom_point(aes(y = pred.err, x = sst_avg,group= fold)) + facet_wrap(~model.id)
-ggplot(mod.fd) + geom_point(aes(y = resid, x = sst_avg,group= fold)) + facet_wrap(~model.id)
-ggplot(pred.fd) + geom_histogram(aes(pred.err,fill=fold)) + facet_wrap(~model.id)
-
-ggplot(mod.fd) + geom_point(aes(y = resid, x = factor.2.number(years_5),group= fold)) + facet_wrap(~model.id)
-ggplot(pred.fd) + geom_histogram(aes(pred.err,fill=fold)) + facet_wrap(~model.id)
-
 # Compare the MSE for the validation data, again last model is best.
 # The caret package has some really nice tools for this...
+pred.error <- pred.fd %>% group_by(model,fold,model.id,species) %>% summarise(mn = mean(pred.err), sd = sd(pred.err),rmse = RMSE(pred,response), mae = MAE(pred,response))
+pred.error$type <- 'Prediction'
+# While if anything here it suggests that the model would tend to have a small biased towards not predicting scallop when there are there.
+mod.resid <- mod.fd %>% group_by(model,fold,model.id,species) %>% summarise(mn = mean(resid),sd =sd(resid),rmse = RMSE(fitted,response), mae = MAE(fitted,response))
+mod.resid$type <- 'Residuals'
 
-tst <- pred.fd %>% group_by(model,fold,model.id) %>% summarise(RMSE = RMSE(pred,response), MAE = MAE(pred,response))
-# could also do it this way...
-tsty <- pred.fd %>% group_by(model.id) %>% summarise(RMSE = RMSE(pred,response), MAE = MAE(pred,response))
+fold.res <- dplyr::bind_rows(pred.error,mod.resid)
+fold.res$model.id[grepl('intercept',fold.res$model.id)] <- 'Intercept'
+fold.res$model.id[grepl('depth_sst',fold.res$model.id)] <- 'Depth + SST'
+fold.res$model.id[grepl('^sst',fold.res$model.id)] <- 'SST'
+fold.res$model.id[grepl('^depth',fold.res$model.id)] <- 'Depth'
+fold.res$species <- as.factor(fold.res$species)
+levels(fold.res$species) <- c("Cod","Yellowtail")
 
-tst2 <- tst %>% group_by(model.id) %>% summarise(mn.rmse = mean(RMSE),sd.rmse=sd(RMSE),mn.mae = mean(MAE),sd.mae=sd(MAE))
-
-tst3 <- mod.fd %>% group_by(model,fold,model.id) %>% summarise(RMSE = RMSE(fitted,response), MAE = MAE(fitted,response))
-
-tst4 <- tst3 %>% group_by(model.id) %>% summarise(mn.rmse = mean(RMSE),sd.rmse=sd(RMSE),mn.mae = mean(MAE),sd.mae=sd(MAE))
+ggplot(fold.res) + geom_point(aes(y = mn, x= model.id,colour = type),position = position_dodge(width=0.2)) + 
+                   facet_wrap(species~.,scales = 'free_x') + theme_bw() + scale_color_manual(values = c("blue","black"))
 
 # So really what all this shows is the the predictions from the model are really good because the random field is so flexible it can 
 # easily predict missing points within the structure.  So new thought for Section 5, what if we instead try and see
@@ -1066,6 +1141,10 @@ tst4 <- tst3 %>% group_by(model.id) %>% summarise(mn.rmse = mean(RMSE),sd.rmse=s
 # predicts 2018 data when we leave it out.
 
 
+#save(fold.res,file = paste0(direct.proj,"Results/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+
+
+### SECTION 5 is kinda pointless now that I"ve done the predictions for 2017-2019 and they look solid..#######
 ############################# SECTION 5 ################################ SECTION 5  ###################################################################
 ############################# SECTION 5 ################################ SECTION 5  ###################################################################
 ############################# SECTION 5 ################################ SECTION 5  ###################################################################
@@ -1127,7 +1206,7 @@ for(s in 1:num.species)
       # For both the beta and binomial families we'll need to determine the number of trials.
       Ntrials <- 1 # For each record there is only 1 trial.
       
-      # For both our scenarios we are going to be using the logit model (note that this isn't scrictly necessary to write as the logit is the
+      # For both our scenarios we are going to be using the logit model (note that this isn't strictly necessary to write as the logit is the
       # 'canonical' link (to likely mis-use stats terminology) for the beta and binomial distributions.
       control.fam = list(control.link=list(model="logit"))
       # Now the 3 and 5 year model
@@ -1883,5 +1962,333 @@ ggsave(plt, file = paste0(direct.proj,'Results/Figures/INLA/Encounter_probabilit
 
   }
 }
+############################# 
 
-          
+
+############################# SECTION 7 ################################ SECTION 7  ###################################################################
+############################# SECTION 7 ################################ SECTION 7  ###################################################################
+############################# SECTION 7 ################################ SECTION 7  ###################################################################
+# Here I'm going to bring in the 2017-2019 data and see how well the full model predicts on that data.
+
+
+# Need to initialize some objects for later
+st.mods <- c(5,3)
+num.fields <- length(st.mods)
+num.mods <- 1 # The number of models I'm gonna run validation on
+
+
+dat.val.new <- dat.val %>% dplyr::select("comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
+new.dat.final <- new.dat.final %>% dplyr::select("comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
+#new.dat.final$comldepth <- -new.dat.final$comldepth
+st_geometry(new.dat.final) <- NULL
+dat.val.new <- rbind(dat.val.new,new.dat.final)
+# I want to set the data up here so we can get the folds identified now
+dat.cod <-  dat.val.new %>% dplyr::filter(survey == "RV")
+dat.yt <- dat.val.new %>% dplyr::filter(survey == "nmfs-spring")
+# Number of folds, going for 5 fold cross validation
+
+
+
+#res.fd <- NULL
+#mod.diag <- NULL
+mod.output.st.yr <- NULL
+mod.diagnostics.st.yr <- NULL
+pred.res.st.yr <- NULL
+for(s in 1:num.species)
+{
+  for(st in 1:num.fields)
+  {
+    if(species[s] == 'cod_PA'){ dat <- dat.cod }
+    if(species[s] == 'yt_PA') { dat <- dat.yt }
+    if(grepl("cod", species[s])) resp <- "cod_PA"
+    if(grepl("yt", species[s])) resp <- "yt_PA"
+    response <- which(names(dat) == resp)
+    names(dat)[response] <- "response"
+    # Lets log transform depth and chl_rg, then center depth, chl_rg and sst_avg, also make SEDNUM a factor
+    dat$depth_log <- log(-dat$comldepth)
+    dat$depth_cen <-  dat$depth_log - mean(dat$depth_log) # Log transform should help with issues related to skew of the depth data.
+    dat$sst_avg_cen <- scale(dat$sst_avg)
+
+    # There really isn't enough data for 2,5,6,8,9, so I am going to exclude those from the analysis for the moment.
+    # The 5 groups represent around 5% of the total data (~450 samples between the 5 levels) .
+     # I wan the year group to be a categorical variable.
+    dat$years_5 <- as.factor(dat$years_5)
+    dat$years_3 <- as.factor(dat$years_3) # I won't run the 3 year era models unless the 5 years are better than the 10 years.
+    # Get the location of our data...
+    loc <- cbind(dat$X,dat$Y)
+    #We also need to decide Observation Likelihood
+    fam <- "binomial"
+    # If looking at all the data use the gf mesh
+    mesh <- mesh.gf
+    range <- range.gf
+    # The amount of data we have
+    N = nrow(dat)
+    # For both the beta and binomial families we'll need to determine the number of trials.
+    Ntrials <- 1 # For each record there is only 1 trial.
+    
+    # For both our scenarios we are going to be using the logit model (note that this isn't strictly necessary to write as the logit is the
+    # 'canonical' link (to likely mis-use stats terminology) for the beta and binomial distributions.
+    control.fam = list(control.link=list(model="logit"))
+    # Now the 3 and 5 year model
+    if(st.mods[st] == 5) eras <- as.numeric(dat$years_5)
+    if(st.mods[st] == 3) eras <- as.numeric(dat$years_3)
+    
+    era.names <- unique(eras)
+    n.eras <- length(unique(eras))
+    if(st.mods[st] == 5)A.era <- inla.spde.make.A(mesh, loc,repl = eras)
+    if(st.mods[st] == 3) A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
+    
+    spde <- inla.spde2.pcmatern(mesh,    
+                                prior.sigma=c(sigma,s.alpha), # The probabiliy that the marginal standard deviation (first number) is larger than second number
+                                prior.range=c(range,r.alpha)) # The Meidan range and the probability that the range is less than this...
+    # and now we define the spatio-temporal random field.  I want to use
+    # group of the 3 year era so that I can make the temporal field be an AR1 process.
+    if(st.mods[st] == 5) w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.rep = n.eras)
+    if(st.mods[st] == 3) w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.group = n.eras)
+    # Zuur never talks about this puppy I don't think, it is a penalised complexity prior but I'm not sure what for, Zuur only
+    # discusses these in terms of the PCP's of the spatial field, this is a prior for precision, see inla.doc("pc.prec")
+    # certainly isn't entirely clear to me!
+    #pcprec <- list(prior='pc.prec', param=c(0.5, 0.01))
+    
+    dat$depth_cen_g <- inla.group(dat$depth_cen,n=100)
+    #dat$chl_rg_cen_g <- inla.group(dat$chl_rg_cen,n=100)
+    dat$sst_avg_cen_g <- inla.group(dat$sst_avg_cen,n=100)
+    options(na.action='na.pass')# Need to do this so that the model matrix retains the NA's in it.
+    X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g , data = dat)
+    # And then make a covariate matrix
+    X <- data.frame(depth =        X.matrix[,1],
+                    sst   =        X.matrix[,2])
+    
+    # The new fangled stacks
+    stk.e = inla.stack(tag="est",
+                       data=list(y = dat$response[dat$year <=2016], link=1L),
+                       effects=list(intercept = rep(1, nrow(dat[dat$year <=2016,])), 
+                                    X = X[which(dat$year <=2016),],
+                                    w = w.index),
+                       A = list(1,1,A.era[which(dat$year <=2016),]))
+    
+    stk.v = inla.stack(tag="val",
+                       data=list(y = NA, link=1L),
+                       effects=list(intercept = rep(1, nrow(dat[dat$year >2016,])), 
+                                    X = X[which(dat$year >2016),],
+                                    w = w.index),
+                       A = list(1,1,A.era[which(dat$year >2016),]))
+    #### join data stacks and extracts the data index
+    stk <- inla.stack(stk.e, stk.v)
+    e.id <- inla.stack.index(stk, 'est')$data
+    v.id <- inla.stack.index(stk, 'val')$data
+    
+    intercept <- 1 # intercept
+    # For the random walk models we need to set the priors for the random walk, Zuur recommmends rw2 as it seems to 
+    # overfit less, to do this I need to bin the covariates using the inla.group function above, problem is 
+    # the rw struggles with covariate values that are very close to each other (rw1 has same issue)
+    # and he recommends these priors to make sure it doesn't get too funky
+    U <- 0.5
+    hyp.rw2 <- list(theta=list(prior = "pc.prec", param = c(U,0.05)))
+    
+    # Both cod and yt go with the mod 1 that is the intercept model 
+    
+    # For yellowtail toss we'll use these models for comparison
+    if(species[s] == "yt_PA")
+    {
+      if(st.mods[st] == 3)
+      {
+        model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+          f(sst , model = "rw1", hyper = hyp.rw2)   + 
+          f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
+        mod.name <- "depth_sst_yt"
+      }
+      
+      if(st.mods[st] == 5)         
+      {
+        model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+          f(sst , model = "rw1", hyper = hyp.rw2)  +
+          f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+        mod.name <- "depth_sst_yt"
+      } # end  if(st.mods[st] == 3) 
+      
+    } # end if(species[s] == "yt_PA")
+    
+    if(species[s] == "cod_PA")
+    {
+      if(st.mods[st] == 5)
+      {
+        model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+          f(sst , model = "rw1", hyper = hyp.rw2)  + 
+          f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+        mod.name <- "depth_sst_cod"
+      }
+      if(st.mods[st] == 3)
+      {
+        model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+          f(sst , model = "rw1", hyper = hyp.rw2)   + 
+          f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
+        mod.name <- "depth_sst_cod"
+      }
+    }
+    
+    
+    run.name <- paste0(species[s],"_model_",mod.name,"_predict_2017_2020_field_",st.mods[st])
+    # Now we run the models
+    r.out <- inla(model, family=fam, data = inla.stack.data(stk),
+                  control.predictor=list(A=inla.stack.A(stk)),
+                  #control.inla=list(int.strategy='eb'), ## do not integrate over theta, makes the calculation quicker but not to be used for a final model run
+                  #verbose=TRUE,
+                  control.compute = list(dic=T,waic=T,cpo=T)) 
+    # The fitted model, residuals and the covariates, both the standardized and on the original scale.
+    mo.out <- data.frame(fitted = r.out$summary.fitted.values[e.id,"mean"] , # The expected values can be found with this
+                         resid = dat$response[dat$year <=2016] - r.out$summary.fitted.values[e.id,"mean"],
+                         response = dat$response[dat$year<=2016],
+                         dep = dat$depth_cen[dat$year<=2016],
+                         sst = dat$sst_avg_cen[dat$year<=2016],
+                         depth = dat$comldepth[dat$year<=2016],
+                         sst_avg = dat$sst_avg[dat$year<=2016],
+                         years_3 = dat$years_3[dat$year<=2016],
+                         years_5 = dat$years_5[dat$year<=2016],
+                         X = dat$X[dat$year<=2016],
+                         Y = dat$Y[dat$year<=2016]
+    )
+    
+    #  a couple of other variables to calculated
+    mo.out$var.Y <- 1* mo.out$fitted * (1-mo.out$fitted) # Get the variance, for a Bernoulli it is n*p*(1-p), where n = 1 for a Bernoulli
+    mo.out$resid.stan <- mo.out$resid / sqrt(mo.out$var.Y) # Now we can get Pearson residuals
+    
+    p.out <- data.frame(pred = r.out$summary.fitted.values[v.id,"mean"] , # The expected values can be found with this, note these need to be transformed...
+                        pred.err = dat$response[dat$year > 2016] - r.out$summary.fitted.values[v.id,"mean"],
+                        response = dat$response[dat$year > 2016],
+                        dep = dat$depth_cen[dat$year > 2016],
+                        sst = dat$sst_avg_cen[dat$year > 2016],
+                        depth = dat$comldepth[dat$year > 2016],
+                        sst_avg = dat$sst_avg[dat$year > 2016],
+                        years_3 = dat$years_3[dat$year >2016],
+                        years_5 = dat$years_5[dat$year >2016],
+                        X = dat$X[dat$year >2016],
+                        Y = dat$Y[dat$year >2016]
+    )
+    
+    # Now the model fits using dic and waic, results very similar.
+    md.out <- data.frame(dic = r.out$dic$dic, 
+                         dic.p.eff = r.out$dic$p.eff,
+                         waic = r.out$waic$waic, 
+                         waic.p.eff = r.out$waic$p.eff,
+                         Dispersion = sum(),
+                         cpo = fcpo(r.out, e.id)) 
+    md.out$Dispersion <- sum(mo.out$resid.stan^2)/ (N-md.out$waic.p.eff)
+    
+    
+    # Really scaling down what we keep so the output object is manageable.  Key here is looking at predictions
+    #res.fd[[run.name]] <- r.out
+    #res[[mod.names[m]]]$model <- mod.names[m]
+    mod.output.st.yr[[run.name]] <- mo.out
+    mod.output.st.yr[[run.name]]$model <- run.name
+    mod.output.st.yr[[run.name]]$model.id <- mod.name
+    mod.output.st.yr[[run.name]]$species <- species[s]
+    # mod.output.st.yr[[run.name]]$fold <- fd
+    mod.output.st.yr[[run.name]]$field <- st.mods[st]
+    
+    mod.diagnostics.st.yr[[run.name]] <- md.out
+    mod.diagnostics.st.yr[[run.name]]$model <- run.name
+    mod.diagnostics.st.yr[[run.name]]$model.id <- mod.name
+    mod.diagnostics.st.yr[[run.name]]$species <- species[s]
+    #mod.diagnostics.st.yr[[run.name]]$fold <- fd
+    mod.diagnostics.st.yr[[run.name]]$field <- st.mods[st]
+    
+    pred.res.st.yr[[run.name]] <- p.out
+    pred.res.st.yr[[run.name]]$model <- run.name
+    pred.res.st.yr[[run.name]]$model.id <- mod.name
+    pred.res.st.yr[[run.name]]$species <- species[s]
+    #pred.res.st.yr[[run.name]]$fold <- fd
+    pred.res.st.yr[[run.name]]$field <- st.mods[st]
+    
+    # Stick a print in here so we know this is moving forward
+    print(paste(run.name,"finished up at", format(Sys.time(),"%H:%M")))
+    # Write a message to the ESS so I can see progress remotely....
+    #fileConn<-file(paste0(direct.proj,"Results/status.txt"))
+    #writeLines(messy, fileConn)
+    #close(fileConn)
+  } # end models
+} # end species
+
+
+#save.image(paste0(direct.proj,"Results/INLA_model_predict_2017_2019.RData"))
+
+
+#load(paste0(direct.proj,"Results/INLA_model_predict_2017_2019.RData"))
+# Now we can see how well the field was estimated in 2017-2019, really we'll want to look year by year to see if the predictions
+# deteriorate over time
+
+# Get the X and Y coordinates on the cod models...
+pred.res.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_5$year <- dat.cod$year[dat.cod$year >2016]
+pred.res.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_3$year <- dat.cod$year[dat.cod$year >2016]
+
+# Now the YT models....
+pred.res.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_5$year <- dat.yt$year[dat.yt$year >2016]
+pred.res.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_3$year <- dat.yt$year[dat.yt$year >2016]
+# Now the same for the modeled data...
+mod.output.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_3$year <- dat.cod$year[dat.cod$year <=2016]
+mod.output.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_5$year <-  dat.cod$year[dat.cod$year <=2016]
+# Now the YT models....
+mod.output.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_5$year <- dat.yt$year[dat.yt$year <=2016]
+mod.output.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_3$year <-  dat.yt$year[dat.yt$year <=2016]
+
+pred.res <- do.call('rbind',pred.res.st.yr)
+pred.res$type <- 'prediction'
+mod.res <- do.call('rbind',mod.output.st.yr)
+mod.res$type <- 'residual'
+pred.res$pred <- inv.logit(pred.res$pred)
+pred.res$pred.err <- pred.res$response - pred.res$pred 
+# Combine them..
+mod.res <- mod.res %>% dplyr::select(fitted,resid,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type)
+pred.res <- pred.res %>% dplyr::select(pred,pred.err,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type)
+names(pred.res) <- c("fitted","resid","response","dep","sst","depth","sst_avg","years_3",'years_5',"X","Y","model","model.id","species","field","year","type")
+# These 2 steps will go away once I get the new model runs where I tidy this all up...
+pred.res <- st_as_sf(pred.res,coords = c("X","Y"), crs= 32619,remove=F)
+mod.res <- st_as_sf(mod.res,coords = c("X","Y"), crs= 32619,remove=F)
+all.resids <- rbind(mod.res,pred.res)
+
+sd.pred <- pred.res %>% group_by(model,year) %>% summarise(sd=sd(resid),rmse = RMSE(fitted,response))
+sd.mod <- mod.res %>% group_by(model,year) %>% summarise(sd=sd(resid),rmse = RMSE(fitted,response))
+
+#save(all.resids,file = paste0(direct.proj,"Results/INLA_2017_2019_prediction_error_summary.RData"))
+
+# This simulates entirely random data between -1 and 1, so if I had no ability to predict the future this is what we'd see...
+null.rmse <- NA
+for(i in 1:10000) null.rmse[i] <- RMSE(runif(50,0,1),rbinom(50,1,0.5))
+# So the null model expectation is an RMSE of around 0.577, probability itself doesn't actually matter which makes some sense since everything is bounded and random
+summary(null.rmse) 
+# So that result basicaly means the cod model is terrible predictor, while the yellowtail is able to predict future years.
+
+all.resids %>% filter(year > 2013) %>% group_by(species,year) %>% summarise(mean(response))
+all.resids %>% filter(year > 2013) %>% group_by(species,year) %>% summarise(mean(resid))
+
+
+# Now make some figures...
+ggplot(pred.res) + geom_sf(aes(colour = pred.err)) + facet_wrap(~model) + scale_colour_viridis()
+ggplot(pred.res) + geom_histogram(aes(x=pred.err,fill=as.factor(year))) + facet_wrap(~model)
+ggplot(mod.res) + geom_histogram(aes(x=resid,fill=as.factor(year))) + facet_wrap(~model)
+
+ggplot(all.resids) + geom_histogram(aes(x=resid,after_stat(density),fill= type)) + facet_wrap(~model)
+ggplot(all.resids) + geom_histogram(aes(x=resid,after_stat(density),fill= type)) + facet_wrap(~model)
+
+
+ggplot(all.resids) + geom_histogram(aes(x=response,after_stat(density),fill= type)) + facet_wrap(~model)
+windows(11,11)
+ggplot(all.resids) + geom_point(aes(x=year,y =resid,fill=type),alpha=0.2,shape = 21) + facet_wrap(~model)
+
+windows(11,11)
+ggplot(all.resids %>% filter(year== 2017)) + geom_sf_text(aes(label = signif(dep,digits=2)))
+
+sfp <- scale_fill_manual(values = c('yellow', 'black'))
+windows(11,11)
+ggplot(all.resids) + geom_sf(aes(response, fill = as.factor(response)),shape=21) + sfp
+
+p <- pecjector(area = "GOM",add_layer = list(bathy = 10))
+p1 <- p + geom_sf_text(data = all.resids %>% filter(year %in%  2010:2019, species == "cod_PA"),aes(label = signif(1.83*depth,digits=2),color=as.factor(year)))
+
+plotly::ggplotly(p1)
+
+
+    
+ 
+  
+  
