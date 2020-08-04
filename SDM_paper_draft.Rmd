@@ -1,0 +1,218 @@
+---
+output:
+  bookdown::word_document2: 
+    fig_caption: yes
+  fontsize: 12pt
+  sansfont: Liberation Sans
+  mainfont: Liberation Sans
+  classoption: twocolumn
+  #  reference_docx: Y:/Projects/GB_time_area_closure_SPERA/Drafts/VMS_closure_paper/word_template.docx
+  bookdown::html_document2: default
+  bookdown::pdf_document2:
+      keep_tex: yes
+      number_sections: no      
+      toc: no
+#bibliography: D:/Zotero/MAR_SABHU.bib
+#csl: D:/Zotero/styles/canadian-journal-of-fisheries-and-aquatic-sciences.csl
+title: Seasonal and Long term variability in species distribution of Atlantic cod (*Gadus morhua*) and Yellowtail Flounder (*Limanda ferruginea*) on Georges Bank
+author: Keith D.M.^a,b^,  Sameoto J.A.^a^, Keyser F.M.^a^, Ward-Paige C.A.^c^, Andrushchenko I.^
+date:  ^a^ Bedford Institue of Oceanography, 
+       ^b^ Dalhousie University, 
+       ^c^ eOceans
+abstract: We sucks at managing fisheries.  There are a bunch of reasons for that, but one possible reason is due to averaging across complex spatial processes.  Recent statistical advances means we can do better.  Here we try to do better.  Here we develop species distribution models for yellowtail flounder (*Limanda ferruginea*) and Atlantic cod (*Gadus morhua*) using groundfish trawl surveys in Canada and the United States.  Results show both seasonal and long term shifts in the distribution of both species and a constant environmental effect of depth and the average sea surface temperature (SST; average between XXXX and YYYY).  These models also indicate that the distribution of the cod changes significantly approximately every 5 years, while the Yellowtail distribution appears to be somewhat more variable with the best models indicating changes within 3 years. These models are able to predict the distribution of both species at least 3 years into the future. Over time both species appear to have shifted their distributions towards the North and east, much of this shift is due to a decline in the probability of observing either species in the western and southern portions of Georges Bank.  The seasonal distribution of cod and yellowtail are relatively consistent throughout the late winter and spring. In the fall the distribution of cod shifts towards the edge of the bank, while it appears the catchability of yellowtail declines during the this time.  Here we show how these models are able to provide novel inshights into both seasonal and interannually variabity in species distributions and identify environmental covariates which have a consistent influence on the distribution of these species. Incorporation of this kind of information into stock assessment process will improve  science advice and our ability to sustainably manage these stocks.  
+---
+
+
+<!-- Bring in the data + figures  -->
+```{r, echo=F, include=F}
+# Bring in the data
+library(readxl)
+library(xtable)
+library(pander)
+library(png)
+library(PBSmapping)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(betareg)
+library(MASS)
+library(tidyverse)
+library(mgcv)
+library(boot)
+library(cowplot)
+library(sf)
+library(sp)
+options(scipen=999)
+
+# Function in case you need it for transforming propotion data to not have 0's and 1's.  
+beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
+
+
+#direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/" 
+direct.proj <- "D:/Projects/GB_time_area_closure_SPERA/"; direct.tmp <- direct.proj
+```
+
+\twocolumn
+
+# Introduction
+
+Sustainable management of fisheries has proven difficult.  By accounting for spatial patterns and processes we may be able to do better
+
+Species Distribution models (SDMs) have been used for a long time in fisheries.  These models typically try to map spatial patterns in species distribution using available environmental covariates.  Without a detailed knowledge of processes underlying the spatial patterns the use of environmental covariates alone cannot fully account for spatial and temporal variability.  These environmental covariates are typically proxies for more complex unobserved(able)ed processes, and changes in these relationships are difficult to account for in these models.
+
+Recent statistical advances have lead to the development of tools which can be used to develop more realistic SDMs.  These models can account for environmental covariates along with accounting for unexplained spatio-temporal variability.  These kindas of SDMs enable the model to identify the consistent environmental signal (covariates) to be estimated while also providing a statistical framework in which the unexplained spatio-temporal variability can be used to better understand spatio-temporal changes in the species distribution.
+
+Tracking spatio-temporal changes facilitates the development of models which can identify consistent spatial anomalies in which the metric being measures deviates from expectation.  Tracking long-term changes improves our understanding of species shifts and provides insight into how changing environmental conditions impact the strength of the environmental correlations.  This provides a framework for predicting the impact of directed environmental change (e.g. climate change).
+
+Here we use a R-INLA framework.  The objectives of this study were to determine
+1: How a suite of static environmental covariates influence the distribution of Atlantic cod (*Gadus morhua*) and Yellowtail flounder (*Limanda ferruginea*) on Georges Bank
+2: How the distribution of these species change over the long term
+3: How rapidly the distribution of these species change over time
+4: How the distribution of these species varies seasonally
+
+# Methods
+
+### Study area 
+
+Georges Bank, located in the northwest Atlantic straddling the US-Canada maritime border, is a 3-150 m deep plateau that covers approximately 40,000 $km^2$ and is characterized by high primary productivity, and historically high fish abundance [@townsendNitrogenLimitationSecondary1997]. It is an eroding bank with no sediment recharge, and covered with coarse gravel and sand that provides important habitat for many species [@valentineSeaFloorEnvironment1991]. Since 1984, Georges Bank has been divided between the US and Canada and, while some collaborative management exists, the US and Canadian portions are largely managed separately (Figure \@ref(fig:Overview)).
+
+### Data
+
+Survey data was obtained from the Fisheries and Oceans Canada (DFO) winter RV survey from 1987-2019 and the National Marine Fisheries Service (NMFS) spring and fall groundfish surveys from 1972-2019.  The DFO-winter survey on Georges Bank typically occurs in February and early March, the NMFS-spring survey typically occurs in April and May, while the NMFS-fall survey generally takes place between September and November.  For all surveys only tows deemed *successful* were used in this analysis.  This resulted in XXX tows from the DFO-RV survey, XXX tows from the NMFS-spring survey, and XXX tows from the NMFS-fall survey.
+
+### Environmental covariates
+
+A suite of XX environmental variables with spatial information were obtained for this analysis (Table XX).  To eliminate redundant variables, variance Inflation Factors (VIFs) were calculated for all variables and any variables with VIF scores > 3 were removed.  This procedure was repeated until no variables remained with a VIF score > 3 (CITE ZUUR). Using the remaining XX variables a Principle Component Analysis (PCA) was undertaken, the top 4 PCA components were retained (these accounted for XX% of the variability in the data) and included as covarates for the models that follow.
+
+### Statistical Analysis
+
+R-INLA was used, go find some good language for explaining GMRF's, SPDE's and mesh and such.  For the INLA models data up to 2016 was used, 2017-2019 was excluded from the main analysis and used to see how well the models were able to predict future distributions for both species.  For all analyses the response variable was presence absence of the species of interest.  WRITE OUT THE MODEL STRUCTURE 
+
+Four random fields were compared for each species and each survey, these included a) a static random field, b) a random field which changed every 10 years, c) a random field which changed every 5 years, and d) and random field which could change every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. using all the data the 10 year field for the DFO-winter survey, the random fields would include the years 2010-2019, 2000-2009, 1990-1999, and 1987-1989). Models with the same covariate structure but different random fields were compared using WAIC and DIC.  In all cases the static spatial field was a significantly worse model than the models with multiple random fields and the results just show the results from the 10/5/3 year random fields.
+
+The different covariate models were compared using the 10 year random field model (due to computational constraints).  Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually.  Model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC of 2 when compared to the best performing model. This analysis was done for both species and all three surveys.  From this analysis only 3 model terms were identified as having a significant effect on the distribution of each species.  For both cod and yellowtail, depth (DEP),  the average sea surface temperature between 19XX and 20XX (SST), the average chlorophyll concentration during these years (CHL) were retained, while for yellowtail the sediment type (SED) was also retained.  These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also used (SST + DEP + SED).  All continuous variables were modelling as a R-INLA random walk 2  which allows for non-linear relationships between the response and each variable.
+
+### Model Validation
+
+Five fold cross validation was used to test the predictive performance of the models.  The data were randomly divided into 5 subsets and trained using 4 of the subsets, the 5the dataset was treated as a testing dataset to determine how well the model was able to predict. Model performance was measured by comparing the the model residuals from the training data to the prediction error from the testing data, the metrics used for this comparison were Root Mean Squared Error (RMSE), Mean Average Error (MAE), and the standard deviation (SD).  For computational reasons the models compared using 5 fold cross validation were (GO LOOK AT WHAT MODELS I COMPARED) using the 5 year random fields.
+
+### Model Prediction
+
+Data from 2017-2019 was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years away from the most recent survey information. The predictive error was estimated using RMSE, MAE, and SD and compared to the residual error from each model.
+
+
+# Results
+
+
+### Environmental Variables
+
+For all three surveys and both species depth and SST were significant predictors of species distribution (TABLE/FIG). For yellowtail the inclusion of sediment type was also marginally significant (TABLE/FIG)
+
+### Random Fields
+
+For cod the preferred random field changes every 5 years (TABLE) and this was consistent for each of the 3 surveys.  
+
+For yellowtail the preferred model had a random field which changed every 3 years (TABLE) and this was consistent for each of the 3 surveys.
+
+### Validation
+
+The 5-fold cross validation indicated that the model was able to predict the distribution for all species and surveys without a significant loss of accuracy, the precision of the validation test set predictions was higher than the precision of the training data.  In addition the prediction from the models using only the random fields was similar to the predictions from the models in which all covariates were used.
+
+### Prediction
+
+All of the models were able to predict the distribution of each species 1, 2, and 3 years into the future (RMSE and other stats).  The 2018 Yellowtail NMFS-spring data had the lowest prediction accuracy, this is likely related to the unusually sparse coverage of this survey in the region in which the probability of encountering yellowtail was elevated (DASHBOARD?).
+
+Inter-annual Variability 
+
+For both species their distributions shifted towards the north and east throughout the study period (COG + FIG).  Much of this shift was driven by a decline in the probability of encounter in the western and southern portions of GB (FIG).  
+
+For cod the area in which the probability of encountering cod was high (> 75?) declined significantly throughout the study period with a rapid decline occurring in the early 1990s which has persisted thereafter (FIG or DASHBOARD).  The cod population now is predominately found in the northeast corner of the bank, this becomes more pronounced during the fall which the highest probability of encounter is found along the edge of the northern portion of the survey area.
+
+For yellowtail the population also shifted from the south and west portion of the bank and the population appeared to straddle the ICJ line separating Can/US.  The size of the core area (PE >75%) has changed during the study period, with the largest areas of high probability of encounter observed in the early 2000s, the expansion of this core area occurred rapidly from a very small core area observed in the 1990s.
+
+### Seasonal Variability
+
+For cod the distribution of the species was similar for the DFO-winter (Feb-Mar) and NMFS-spring (April-May) surveys, while a clear shift in the distribution was observed for the NMFS-fall survey (Sept-Nov).  
+
+For yellowtail the distribution was observed to be similar for all three surveys with a clear core area consistently identified.  In the fall the probability of encounter is generally lower that observed in the winter and spring despite the spatial distribution remaining similar (FIG, simple fig showing mean + SE for each survey from best model).
+
+COMPARE THE DEPTH/SST relationships between surveys here, I believe they were very similar throughout but explore this here.
+
+# Discussion
+
+Here we have shown how models which incorporate both environmental and spatial information can be used to partition static environmental relationships from dynamic changes which occur both inter and intra-annually. This framework enables a better understanding of the magnitude of dynamical shifts along with identifying regions of consistently high and low probability of encounter throughout the study region.
+
+If you want to protect something, knowing where it is going to be is kinda helpful.  Implications for closures.
+
+Cod is likely moving off the bank in the Fall now, implications for using the Fall as a survey index for cod.
+
+Talk about YT protection efforts in Can/US and how the strategies don't appear to be doing anything.  The US has put in large protected areas, one of which is in the right spot (check the year that the closed area 1/2 was put in place), seemed to help initially, but population still declined after initial rebound.
+
+Is yellowtail drop in encounter probability due to yellowtail being less susceptible to fishing gear during this period or due to a migration off the bank during this period?
+
+Knowing where firsh are seasonally would surely hlpe then trying to manage incidental mortality for these stocks
+
+### Yellowtail
+
+On the U.S. side closures were put in place in 1994 to assest with the rebuilding of stocks in the region (CITE LINK 2005 maybe? SOME MORE DETAILS OF THESE CLOSURES MAY BE USEFUL).  Closed Area II straddels the ICJ line and includes much of the area identified as core yellowtail habitat on on the U.S. side of Georges Bank.  Intreguingly, the expansion of the yellowtail populaiton occured shortly after the implementation of this closure, and the expansion of the core yellowtail habitat in the early 2000's was centered around this closed area.  The expansion of the yellowtail core area corresponded to a rapid, yet ephemerial increase in yellowtail biomass. This might suggest evidence of a positivie assocaition between this closure and yellowtail status, but unfortunately the yellowtail population has subsequently declined and is near historical low levels on the bank and the core area of yellowtail is similar in size to what was observed before this closure was put in place.
+
+The recent declines may be tied to environmental change on Georges Bank (CITE!) and given the loss of Yellowtail from the warmer portions of the bank (West and South) it is possible that the remaining core area represents the last suitable habitat on Georges Bank for this species. Yellowtail prefer depths of 40-70 meters (CITE + these results) and the core area identifed here represents the most northern region of these depths on Georges Bank. If temperatures continue to increase as projected (CITE: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0231595#sec024) the suitability of this habitat may continue to decline and may effectively lead to the extirpation of yellowtail from Georges Bank irrespective of any fisheries management action.
+
+Abundances of yellowtail are low throughout the entirety of the U.S. (CITE the 3 assessments here https://www.fisheries.noaa.gov/species/yellowtail-flounder#overview) which represents the southern limit of the historical ranage of this species.
+
+On the Canadian side of Georges Bank there has been no directed yellowtail fishery since XXXX (Freya) and Georges Bank is close to groundfish fishery from March 1 to May 31 each year.  These closures are implemented to protect cod and haddock spawning aggregations but likely provide some benefit for yellowail spawners (OBrien, spanwing is ?May-July?).  A seperate closure of the scallop fishery in June of the year closes a small variable subset of the bank to the scallop fishery to protect spawning yellowtail from bycatch in this fishery.  The effectiveness of the yellowtail closures in achieving their management objective are questionable in large part due to the small size and short duration of these closures; this analysis supports the conclusion that the size of these time-area closures of the scallop fishery are too small given the size of the core area on the Canadian side of Georges Bank (Cite me).
+
+### Cod
+
+The distribtion of cod has steadily shifted throughout the duration of the study period.  The depth preference of cod is more variable than yellowtail (6-400 meeters ish, find a real citation) but as observed with yellowtial the core area in the more southern and western reaches of the bank have declined over the course of the study period.  The core area for cod collapsed rapidly in the early 1990's in unison with the collapse of the stock throughout the Northwest Atlantic.  Since the collapse the core area has remained relatively consistent but has continued to slowly shift to the north and east throughout the year, though the shift is more pronouced in the fall.
+
+The fall distribution of cod is likely now located on the northeastern slope of the bank outside of the core survey domains of any of the surveys.  This northeastern shift of the population over the course of this study suggests that the surveys are no longer sampling the entirety of this population throughout the course of the year (i.e. a higher proportion of the stock is now located outside of the survey domain).  Each of the survey indicies are used as inputs to the cod stock assessment model for eastern Georges Bank cod (CITE). This assessment model suffered from such significant retrostpective patterns that this stock assessment model was eventually rejected; it is likely that the observed shift in the distribution of cod outside of the survey domain contributed to the model retrospective problems (CITE)
+
+(CITE Link 2005 Am Fish, not yet downloaded The Effects of Area Closures on Georges Bank)
+
+### Closures (May all be above...)
+
+Both the U.S. and Canadian jurisdications have iplemented closures to protect these species. CA II aligns with the observed yellowtail distribution.
+
+On the Canadian side several seasonal closures are put in place to protect spawning groundfish aggregations.  The Canadian Groundfish fleet on GB predominately target Atlantic haddock (*Melanogrammus aeglefinus*) and is subjected to a closure to protect cod and haddock spawning aggregations from March 1 to May 31.  The other major Canadian fishery on Georges Bank is the Offshore Scallop Fishery; this fishery is also subjected to closures of variable size and location ($\approx 300 km ^2$).  These closures occur in February and March (protecting cod spawning aggregations) and June (protecting yellowtail spawning aggregations). For closures of limited size and variable location a means of predicting the spatial likelihood of encounter of the species to be protected is required for the upcoming year such as what has been developed here.  These results indicate that for both species the core spawning area is significantly larger than the area protected by the scallop fishery time-area closures and as such these closures would not be able to provide complete protection of these species spawning aggregations.  
+
+# Conclusions
+
+These models provides insight into how the distribution of both species changes both seasonally and inter-annually.  This insight can support the provision of improved science advice (e.g. stock assessment and protected areas) and sustainable fisheries management.
+
+# Conclusions
+
+
+
+## Acknowledgements 
+I'm not sure who to thank...
+
+
+\onecolumn
+
+<!-- <br> -->
+<!-- <!-- Insert table 1 note how I'm dealing with the figure caption here--> -->
+<!-- ```{r,Aggregate,echo=F} -->
+<!-- options(knitr.kable.NA = '') -->
+<!-- knitr::kable( -->
+<!--   table_1, booktabs = TRUE, format='pandoc',  -->
+<!--   caption = "Summary of the past closures.  Area is in $km^2$, Perimeter is $km$.  The aggregation index is the ratio of the Perimeter to Area, lower values indicate increased aggregation." -->
+<!-- ) -->
+```
+
+
+<br>
+
+
+<!-- ```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Inset shows magnification of George's Bank a showing the outline (in grey) of the primary scallop fishing area and hatched squares show all the cells that have been closed in at least one year since 2006 (some were only closed one year, others closed multiple years). Closures for cod are February-March, 2006-2018, and for yellowtail flounder are June, 2007-2018"}  -->
+<!-- # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output -->
+<!-- knitr::include_graphics(fig.overview) -->
+<!-- ``` -->
+
+
+
+\newpage
+<br>
+
+# References
