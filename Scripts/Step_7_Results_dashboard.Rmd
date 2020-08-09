@@ -42,7 +42,7 @@ direct.proj <- "D:/Github/"
      eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
      eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
      eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/predict_fields.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Scripts/predict_fields.R",ssl.verifypeer = FALSE)))
 
 # A function for calculating the cpo for a model...
 fcpo <- function(m, id)
@@ -93,7 +93,7 @@ load(file = paste0(direct.proj,"Paper_2_SDMs/data/All_model_covariate_fits.RData
 # for testing purposes...
 #input <- data.frame(prob = 0.8, species = "cod", survey = "RV_survey")
 bp <- pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05) + theme_map()
-bp2 <- pecjector(gg.obj = bp, repo = 'github',area = list(x=c(380000,740000), y = c(4500000,4750000),c_sys = 32619),plot=F) + theme_map()
+bp2 <- pecjector(gg.obj = bp, repo = 'github',area = list(x=c(380000,740000), y = c(4500000,4750000),crs = 32619),c_sys = 32619,plot=F) + theme_map()
 
 ``` 
 
