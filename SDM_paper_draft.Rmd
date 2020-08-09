@@ -24,7 +24,7 @@ abstract: We sucks at managing fisheries.  There are a bunch of reasons for that
 
 
 <!-- Bring in the data + figures  -->
-```{r, echo=F, include=F}
+```{r echo=F, include=F, paged.print=FALSE}
 # Bring in the data
 library(readxl)
 library(xtable)
@@ -43,14 +43,85 @@ library(boot)
 library(cowplot)
 library(sf)
 library(sp)
+library(RCurl)
+# Don't use scientific notation please!!
 options(scipen=999)
+# Bring in our freind pectinid
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
+source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
+
 
 # Function in case you need it for transforming propotion data to not have 0's and 1's.  
 beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
 
 
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/" 
-direct.proj <- "D:/Projects/GB_time_area_closure_SPERA/"; direct.tmp <- direct.proj
+direct.proj <- "D:/Github/Paper_2_SDMs/"; direct.tmp <- direct.proj
+
+# Some crap we need to load
+load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
+
+# The data, in sf form
+dat.sf <- st_as_sf(dat.final, coords = c('lon','lat'),crs = 4326,remove=F)
+dat.sf <- st_transform(dat.sf,crs = 32619)
+# Lets get a basemap set up for the rest of the show.
+bp.zoom <- pecjector(c_sys = 32619,area = list(x=c(380000,780000), y = c(4430000,4750000),crs = 32619),add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F) #+ theme_map()
+
+
+# Same but with bathy underlain
+bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl',bathy = c(10,'s',200)),c_sys = 32619,buffer = 0.05) + theme_map()
+
+
+# A figure providing a general overview of the area....
+
+# #  A nice clean polygon of the core of the GB area we want to deal with here.
+ clp.poly <- st_as_sf(data.frame(X = c(508000,508000,900000,650000,600000,550000),
+                                 Y=c(4540000,4350000,4674000,4674000,4661000,4622000),ID=1),coords = c("X","Y"),crs= 32619)
+ clp.poly <- st_cast(st_combine(clp.poly),"POLYGON")
+# # Now use the bigger clp with this other clip to get a nice clipped GB area...
+ clp.pred <- st_intersection(clp,clp.poly)
+
+
+fig.over <- bp.bathy + geom_sf(data = clp.pred,fill=NA) + geom_sf(data= dat.sf,alpha = 0.25,shape=19,size=0.5,color='black',fill='black')
+
+save_plot(paste0(direct.proj,"Results/Figures/GB_overview.png"),fig.over,base_width =6,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/GB_overview.tiff"),fig.over,base_width =6,base_height =8,units='in')
+ 
+fig_overview <- paste0(direct.proj,"Results/Figures/GB_overview.png")
+# Map of SST and Depth 
+################################
+#Depth and SST Maps - Commented out as these should be basically static plots
+# First, I need a map showing the spatial distribution of the SST and Depth
+
+load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
+
+#
+#
+# # And subset the sst data to this.
+ sst.gb <- st_intersection(sst.sf,clp.pred)
+
+ depth.gb <- st_intersection(depth.sf,clp.pred)
+# # So for both species depth patterns over 150 meters are pretty flat, so I can just lump them altogether so we can see the key depth bits
+ depth.gb$Band_1[depth.gb$Band_1 <= -150] <- -150
+#
+#
+ sst.map <- bp.zoom + geom_sf(data=sst.gb,aes(color = Band_1,fill = Band_1)) + scale_color_viridis_c(option = "plasma",direction = 1,end = 0.75,name="SST (°C)") + scale_fill_viridis_c(option = "plasma",direction = 1,end = 0.75,name="SST (°C)")
+#
+ depth.map <- bp.zoom + geom_sf(data=depth.gb,aes(color = Band_1,fill = Band_1)) + scale_color_viridis_c(option = "viridis",direction = 1,end = 0.75,name="Depth (m)") + scale_fill_viridis_c(option = "viridis",direction = 1,end = 0.75,name="Depth (m)")
+# # Plotting this beast is really slow b/c the depth data are so fine scale
+
+# Now combine these two figures and save it, because the save is so slow I've turned it off after making this figure the first time
+# If you want to remake it uncomment the saves below
+p.covars <- plot_grid(sst.map, depth.map,align = "h", nrow = 1)
+save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.tiff"),p.covars,base_width =8,base_height =4,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png"),p.covars,base_width =8,base_height =4,units='in')
+sst_depth_spatial <- paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png")
+
+
+
+################################
+
 ```
 
 \twocolumn
@@ -192,23 +263,28 @@ I'm not sure who to thank...
 \onecolumn
 
 <!-- <br> -->
-<!-- <!-- Insert table 1 note how I'm dealing with the figure caption here--> -->
+<!-- <!-- Insert table 1 note how I'm dealing with the figure caption here--> 
 <!-- ```{r,Aggregate,echo=F} -->
 <!-- options(knitr.kable.NA = '') -->
 <!-- knitr::kable( -->
 <!--   table_1, booktabs = TRUE, format='pandoc',  -->
 <!--   caption = "Summary of the past closures.  Area is in $km^2$, Perimeter is $km$.  The aggregation index is the ratio of the Perimeter to Area, lower values indicate increased aggregation." -->
 <!-- ) -->
-```
+<!-- ``` -->
 
 
 <br>
 
+```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank study area"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(fig_overview)
+```
 
-<!-- ```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Inset shows magnification of George's Bank a showing the outline (in grey) of the primary scallop fishing area and hatched squares show all the cells that have been closed in at least one year since 2006 (some were only closed one year, others closed multiple years). Closures for cod are February-March, 2006-2018, and for yellowtail flounder are June, 2007-2018"}  -->
-<!-- # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output -->
-<!-- knitr::include_graphics(fig.overview) -->
-<!-- ``` -->
+
+```{r SST_and_Depth, echo=FALSE,out.width="100%",dpi=200,fig.cap = "SST (199X - 20XX average field) and Depth fields on Georges Bank"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(sst_depth_spatial)
+```
 
 
 

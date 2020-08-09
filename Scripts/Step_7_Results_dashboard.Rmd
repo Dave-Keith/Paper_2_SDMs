@@ -1,0 +1,849 @@
+---
+title: "Cod and Yellowtail Spatial Models"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: flatly
+  orientation: columns
+  vertical_layout: fill
+  # storyboard: true
+runtime: shiny
+#runtime: shiny_prerendered #  This is supposed to render all the plots right off the bat, so slower first time, but makes moving between pages really quick...
+---
+
+
+
+```{r global, include=FALSE}
+################Section 1    Load data and functions ########################## ################Section 1    Load data and functions ##########
+library(shiny)
+library(shinyWidgets)
+library(flexdashboard)
+library(readr)
+library(leaflet)
+library(DT)
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(sf)
+library(data.table)
+library(units)
+library(cowplot)
+library(knitr)
+library(animation)
+library(RCurl)
+library(boot)
+
+#direct.fun <- "Y:/Offshore/Assessment/"
+direct.proj <- "D:/Github/"
+#direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
+#direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
+
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_coords.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
+     eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/predict_fields.R",ssl.verifypeer = FALSE)))
+
+# A function for calculating the cpo for a model...
+fcpo <- function(m, id)
+  -sum(log(m$cpo$cpo[id]), na.rm=TRUE) # Good to log this because of distributional reasons.
+# Convert a factor to a number
+factor.2.number <- function(x) {as.numeric(levels(x))[x]}
+
+# The random fields
+load(paste0(direct.proj,"Paper_2_SDMs/data/random_fields_from_top_models.RData"))
+# The meshes
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_meshes.RData"))
+
+# Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_mesh_input_data.RData"))
+#load(paste0(direct.proj,"Data/INLA_meshes.RData"))
+#load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+# Here I load the Prediction mesh/grid.
+load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_mesh.RData"))
+# Here I load results from the models with the full predictive fields.
+load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_fields_all_models.RData"))
+# The predicted data for 2017 to 2019, this  file only contains the object all.resids which has the summary of the residuals and prediction error for the 2017-2019 data.
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_2017_2019_prediction_error_summary.RData"))
+# THe model diagnostics when comparing the 3/5/10 year fields...
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_st_3_5_10_model_diagnostics.RData"))
+mod.diag.fields$species <- as.factor(mod.diag.fields$species)
+levels(mod.diag.fields$species) <- c("Cod","Yellowtail")
+# Here are the fixed effects model comparisons, CPO's and model diagnostics in there
+load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+# Gotta run in this order for this to work...
+mod.diag.fixed$model.id[grepl("depth_sst_sed",mod.diag.fixed$model.id)] <- "Dep + SST + Sed"
+mod.diag.fixed$model.id[grepl("depth_sst",mod.diag.fixed$model.id)] <- "Dep + SST"
+mod.diag.fixed$model.id[grepl("depth_",mod.diag.fixed$model.id)] <- "Dep"
+mod.diag.fixed$model.id[grepl("chl",mod.diag.fixed$model.id)] <- "SST + Chl"
+mod.diag.fixed$model.id[grepl("sst_",mod.diag.fixed$model.id)] <- "SST"
+mod.diag.fixed$model.id[grepl("intercept",mod.diag.fixed$model.id)] <- "Intercept"
+mod.diag.fixed$model.id <- factor(mod.diag.fixed$model.id)
+mod.diag.fixed$model.id <- factor(mod.diag.fixed$model.id, levels(mod.diag.fixed$model.id)[c(4,1,5,2,6,3)])
+mod.diag.fixed$species[grepl("yt_PA",mod.diag.fixed$species)] <- "Yellowtail"
+mod.diag.fixed$species[grepl("cod_PA",mod.diag.fixed$species)] <- "Cod"
+
+# This brings in the 5 fold cross validation results
+load(file = paste0(direct.proj,"Paper_2_SDMs/data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+# Here are the model covariate fits from the model
+load(file = paste0(direct.proj,"Paper_2_SDMs/data/All_model_covariate_fits.RData"))
+
+#theme_set(theme_map())
+
+# for testing purposes...
+#input <- data.frame(prob = 0.8, species = "cod", survey = "RV_survey")
+bp <- pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05) + theme_map()
+bp2 <- pecjector(gg.obj = bp, repo = 'github',area = list(x=c(380000,740000), y = c(4500000,4750000),c_sys = 32619),plot=F) + theme_map()
+
+``` 
+
+Model Output
+===================================== 
+
+
+Column {data-width=250 .sidebar}
+-----------------------------------------------------------------------
+
+
+```{r}
+
+awesomeCheckboxGroup(inputId  = "species",
+             label = "Which Species",
+             choices = c("Atlantic cod" = "cod_PA",
+                        "Yellowtail flounder" = "yt_PA"),
+             selected = "cod_PA")
+
+awesomeRadio("survey","Which Survey",
+            choices = c("NMFS Spring" = "nmfs-spring",
+                        "NMFS Fall" = "nmfs-fall",
+                        "DFO RV" = "RV"),
+            selected = "RV survey")
+
+awesomeRadio("eras","Length of Eras",
+            choices = c("10 years" = "st.10",
+                        "5 years" = "st_5",
+                        "3 years" = "st_3"),
+            selected = 'st_5')
+
+awesomeRadio("model","Model Covariates",
+            choices = c("Intercept" = "model.int",
+                        "SST + Depth" = "model.depth.sst",
+                        "SST + Depth + Sed (YT only)" = "model.depth.sed.sst"),
+            selected = 'model.int')
+
+awesomeRadio("field","Estimator",
+            choices = c("Response" = "response",
+                        "Link" = 'link',
+                        "Raw" = 'raw',
+                        "Standard Deviation" = "sd"),
+            selected = 'response')
+
+#input <- data.frame(field = 'link', model = 'model.depth.sst',eras = 'st.10',species = 'cod_PA',survey = 'nmfs-spring survey')
+
+actionButton("go_out",label="",icon =icon("redo"))
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Depth and SST effects
+
+- From the models the primary covariates that were retained were SST, Depth, and for Yellowtail a weak effect of Sediment type
+- These are the estimates for the Field mean (intercept), SST, Depth, and Sediment Type for the respective models.  
+  - Note that not all combinations of models exist
+- The **Estimators**
+  - *Response* is the effects estimate + intercept on the probability scale
+  - *Raw* is the model output, this is the 'effects' size on logit scale
+  - *Link* is the effect size + intercept on the logit scale
+  - *Standard Deviation* is on the *Raw* model estimates
+
+```{r}
+renderPlot({
+  input$go_out
+  isolate({
+          # Pick your model
+          if(input$eras == 'st.10') pick.mod <- paste0(input$species," ",input$survey," survey ",input$model," ",input$eras)
+          if(input$eras != 'st.10') pick.mod <- paste0(input$species," ",input$survey," survey ",input$model,"_",input$eras)
+          # Grab the data and do the necessary transforms that were done to depth and sst for the model.
+          dat.sub <- dat.final %>% dplyr::filter(survey == input$survey)
+          dat.sub$depth_log <- log(-dat.sub$comldepth)
+          dat.sub$depth_cen <-  dat.sub$depth_log - mean(dat.sub$depth_log) 
+          dat.sub$sst_avg_cen <- scale(dat.sub$sst_avg)
+
+          # Set some ylim ranges...
+          if(input$field == 'response') limy <- c(0,1)
+          if(input$field == 'sd') limy <- c(0,1.1)
+          if(input$field == 'link') limy <- c(-11,5) # Link here is the means estimate (i.e. effects estimte + intercept)
+          if(input$field == 'raw') limy <- c(-9,7) # Raw here is the effects estimate directly from model
+          
+          # Now get the fixed terms, depth terms, and sst terms from your model as appropriate
+          int.res <- all.mod.fixed[[pick.mod]]
+          if(is.null(int.res)) stop("That particular model combination doesn't exist, sorry!!")
+          # This works fine if intercept only model
+          if(input$field == 'response')
+          {
+            int.res$response <- inv.logit(int.res$mean[1])
+            int.res$LCI <- inv.logit(int.res$`0.975quant`[1])
+            int.res$UCI <- inv.logit(int.res$`0.025quant`[1])
+          }
+          if(input$field %in% c('link','raw'))
+          {
+            int.res$link <- int.res$mean
+            int.res$raw <- int.res$mean
+            int.res$UCI <- int.res$`0.975quant`
+            int.res$LCI <- int.res$`0.025quant`
+          }
+
+          # Note that this will get the intercept + the Sediment terms for the models with sed in them.
+          if(nrow(int.res) >1)
+          {
+            # Trun the 'effects' into a 'means' estimate, this doesn't fully account for uncertain, but get's the point across.
+            if(input$field == 'response')
+            {
+              int.res$response[2:nrow(int.res)] <- inv.logit(int.res$mean[1] + int.res$mean[2:nrow(int.res)])
+              int.res$LCI[2:nrow(int.res)]  <- inv.logit(int.res$mean[1] + int.res$`0.025quant`[2:nrow(int.res)])
+              int.res$UCI[2:nrow(int.res)]  <- inv.logit(int.res$mean[1] + int.res$`0.975quant`[2:nrow(int.res)])
+            }
+   
+            if(input$field == 'link')
+            {
+              int.res$link[2:nrow(int.res)] <- (int.res$mean[1] + int.res$mean[2:nrow(int.res)])
+              int.res$LCI[2:nrow(int.res)]  <- (int.res$mean[1] + int.res$`0.025quant`[2:nrow(int.res)])
+              int.res$UCI[2:nrow(int.res)] <- (int.res$mean[1] + int.res$`0.975quant`[2:nrow(int.res)])
+            }
+            int.res <- int.res[-1,] # Get rid of the 'intercept' row as it's basically meaningless for what we're doing here
+          } # if(nrow(int.res) >1)
+         # Get the correct field names
+          names(int.res)[names(int.res) == input$field] <- "res"
+          # Make the intercept plot
+          if(input$field != 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=rownames(int.res))) + ylab("Estimate") +  xlab("") + ylim(limy) + 
+                                                          geom_errorbar(aes(x = rownames(int.res),ymax = UCI,ymin = LCI),alpha=0.5,width=0)  + 
+                                                          theme_bw() + theme(text = element_text(size=22))
+          
+          if(input$field == 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=rownames(int.res))) + xlab("") + ylab("Estimate") +ylim(limy) +
+                                                          theme_bw() + theme(text = element_text(size=22))
+      
+
+          
+          # Get depth on proportion scale
+          if(!grepl("depth",pick.mod)) pd <- NULL
+          if(grepl("depth",pick.mod)) 
+          {
+            depth.res <- all.mod.depth[[pick.mod]]
+            depth.res$depth <- exp(depth.res$ID + mean(dat.sub$depth_log))
+           
+            if(input$field == 'response')
+            {
+              depth.res$response <- inv.logit(depth.res$mean + int.res$mean[1])
+              depth.res$UCI <- inv.logit(depth.res$`0.975quant` + int.res$mean[1])
+              depth.res$LCI <- inv.logit(depth.res$`0.025quant` + int.res$mean[1])
+            }
+            if(input$field == 'raw')
+            {
+              depth.res$raw <- depth.res$mean
+              depth.res$UCI <- depth.res$`0.975quant`
+              depth.res$LCI <- depth.res$`0.025quant`
+            }
+            if(input$field == 'link')
+            {
+              depth.res$link <- depth.res$mean  + int.res$mean[1]
+              depth.res$UCI <- depth.res$`0.975quant` + int.res$mean[1]
+              depth.res$LCI <- depth.res$`0.025quant` + int.res$mean[1]
+            }
+            names(depth.res)[names(depth.res) == input$field] <- "res"
+
+            if(input$field != 'sd') pd <-  ggplot(depth.res) + geom_line(aes(y = res,x=depth)) + ylab("") + ylim(limy)  + xlim(c(0,200)) + 
+                                                               geom_ribbon(aes(x = depth,ymax = UCI,ymin = LCI),fill = 'blue',alpha=0.5) + 
+                                                               theme_bw()+theme(text = element_text(size=22))
+            if(input$field == 'sd') pd <-  ggplot(depth.res) + geom_line(aes(y = res,x=depth)) +ylim(limy) + xlim(c(0,200)) + ylab("") + 
+                                                               theme_bw() +  theme(text = element_text(size=22)) 
+        
+
+          } # end if(grepl("depth",pick.mod)) 
+          
+          # Get sst on proportion scale
+          if(!grepl("sst",pick.mod)) ps <- NULL
+          if(grepl("sst",pick.mod))
+          {
+            sst.res <- all.mod.sst[[pick.mod]]
+            sst.res$sst <- sst.res$ID* attr(dat.sub$sst_avg_cen,"scaled:scale") + attr(dat.sub$sst_avg_cen,"scaled:center")
+            if(input$field == 'response')
+            {
+              sst.res$response <- inv.logit(sst.res$mean + int.res$mean[1])
+              sst.res$UCI <- inv.logit(sst.res$`0.975quant` + int.res$mean[1])
+              sst.res$LCI <- inv.logit(sst.res$`0.025quant` + int.res$mean[1])
+            }
+            if(input$field == 'raw')
+            {
+              sst.res$raw <- sst.res$mean 
+              sst.res$UCI <- sst.res$`0.975quant`
+              sst.res$LCI <- sst.res$`0.025quant`
+            }
+            if(input$field == 'link')
+            {
+              sst.res$link <- sst.res$mean + int.res$mean[1]
+              sst.res$UCI <- sst.res$`0.975quant` + int.res$mean[1]
+              sst.res$LCI <- sst.res$`0.025quant` + int.res$mean[1]
+            }
+            
+            names(sst.res)[names(sst.res) == input$field] <- "res"
+            if(input$field != 'sd') ps <- ggplot(sst.res) + geom_line(aes(y = res,x=sst)) + ylab("")  + ylim(limy) + xlim(c(9.5,13.5)) + 
+                                                            geom_ribbon(aes(x = sst,ymax = UCI,ymin = LCI),fill = 'blue',alpha=0.5)  + 
+                                                            theme_bw() + theme(text = element_text(size=22))
+            if(input$field == 'sd') ps <- ggplot(sst.res) + geom_line(aes(y = res,x=sst))  + xlim(c(9.5,13.5)) + ylab("") +ylim(limy)+ 
+                                                            theme_bw() +  theme(text = element_text(size=22)) 
+
+          } # end if(grepl("sst",pick.mod))
+          f.plt <-plot_grid(pi,ps,pd,NULL,NULL,NULL,nrow =2,rel_heights = c(3,1))
+          f.plt
+  })
+})
+```
+
+### Random fields
+
+```{r}
+
+renderPlot({
+  input$go_out
+  isolate({
+          clp <- st_convex_hull(st_union(st_as_sf(loc.gf)))
+          clp.poly <- st_as_sf(data.frame(X = c(508000,508000,900000,650000,600000,550000),
+                                          Y=c(4540000,4350000,4674000,4674000,4661000,4622000),ID=1),coords = c("X","Y"),crs= 32619)
+          # Now make this a polygon
+          clp.poly <- st_cast(st_combine(clp.poly),"POLYGON")
+          clp.pred <- st_intersection(clp,clp.poly)
+          # The random field for model X
+          if(input$eras == 'st.10') pick.mod <- paste(input$species,input$survey,"survey",input$model,input$eras)
+          if(input$eras != 'st.10') pick.mod <- paste0(input$species," ",input$survey," survey ",input$model,"_",input$eras)
+          fld <- select.rand.fields[[pick.mod]]
+          if(is.null(fld)) stop("Sorry, this combination of models doesn't exist")
+          pck.field <- paste0("r.field.",input$field)
+          names(fld)[names(fld) == pck.field] <- "response"
+    
+          if(input$survey == "RV" & input$eras == 'st.10') fld$era <- fld$era + min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_10)) -1
+          if(input$survey == "RV" & input$eras == 'st_5') fld$era <- fld$era +  min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_5)) -1
+          if(input$survey == "RV" & input$eras == 'st_3') fld$era <- fld$era +  min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_3)) -1
+          eras <- unique(fld$era)
+          n.eras <- length(eras)          
+          for(n in min(eras):max(eras))
+            {
+            if(input$eras == 'st.10')  yrs <- paste0(substr(dat.final %>% filter(years_10 == n, survey == input$survey) %>% 
+                                                                       summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_10 == n, survey == unique(input$survey)) %>% summarise(max = max(year)),3,4))
+            if(input$eras == 'st_5')  yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == input$survey) %>% 
+                                                                       summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_5 == n, survey == unique(input$survey)) %>% summarise(max = max(year)),3,4))
+            
+            if(input$eras == 'st_3')  yrs <- paste0(substr(dat.final %>% filter(years_3 == n, survey == input$survey) %>% 
+                                                                       summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_3 == n, survey == unique(input$survey)) %>% summarise(max = max(year)),3,4))
+            
+              if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+            
+              fld$yrs[fld$era==n] <- yrs
+          }
+          
+          brk <- pretty(fld$response)
+          range(fld$response)
+
+         
+          mesh.gf$crs <- CRS("+init=epsg:32619")
+          
+          col <- addalpha(pals::viridis(101),1)
+          if(length(brk) <= 6) hgt <- unit(1,'cm')
+          if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.75,'cm')
+          if(length(brk) > 12) hgt <- unit(2.5,'cm')
+          lims <- range(brk)
+          
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Field Estimate")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Field Estimate")
+          
+          mesh.sf <- st_as_sf(data.frame(x = mesh.gf$loc[,1], y = mesh.gf$loc[,2]), coords = c('x','y'),crs = 32619)
+          
+          st_geometry(fld) <- rep(st_geometry(mesh.sf),n.eras)
+          fld.clp <- st_intersection(fld,clp.pred)
+          # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+          plt<- bp + geom_sf(data = fld.clp  ,aes(fill = response,colour=response))+
+            facet_wrap(~yrs) +
+            coord_sf(datum=32619) + sf + sc  + #theme_map() +
+            theme_map() + theme(legend.key.height =hgt,text = element_text(size=22)) 
+          plt
+          })
+})
+
+```
+
+
+Model Diagnostics
+===================================== 
+
+
+Column {data-width=250 .sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+# sliderInput("prob", label = "Encounter Probability",
+#             min = 0, max = 1, value = 0.8, step = 0.05)
+# radioButtons("species","Which Species", 
+#             choices = c("Atlantic cod" = "cod",
+#                         "Yellowtail flounder" = "yt"))
+selectInput("diag","Diagnostic Statistics", 
+            choices = c("CPO" = 'cpo',
+                        "WAIC" = "waic",
+                        "DIC" = "dic",
+                        "RMSE" = "RMSE",
+                        "MAE" = "MAE"))
+
+selectInput("val","Validation Statistics", 
+            choices = c("Raw Error" = 'mn',
+                        "RMSE" = "rmse",
+                        "MAE" = "mae",
+                        "SD" = "sd"))
+
+actionButton("go_val",label="",icon =icon("redo"))
+
+# So we can do our reactive stuff here, which is potentially nice, this is essentially my 'conductive element"
+
+
+```
+
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Diagnostics 
+
+**The left column contains the results comparing the 3 random fields (Intercept only models), the right column compares different covarite models**
+
+```{r}
+
+renderPlot({
+  input$go_val
+  isolate({
+  diag.fields <- mod.diag.fields %>% ungroup() %>% dplyr::select(input$diag,st.era,species,min_2,min_10)
+  diag.fixed <- mod.diag.fixed %>% ungroup() %>% dplyr::select(input$diag,model.id,species,min_2,min_10)
+  names(diag.fields) <- c('response','era','species',"min_2","min_10")
+  names(diag.fixed) <- c('response','model','species',"min_2","min_10")
+
+  #names(plt.dat) <- c("mn",'model','type','species')
+  if(input$diag == 'dic') 
+  {  
+    ax.lab <- "DIC"
+    field.plt <-ggplot(diag.fields) + geom_point(aes( x =response,y=as.factor(era)),size=2) + ylab("") + xlab(ax.lab) + 
+                                                            geom_vline(aes(xintercept = min_2), col = 'red',size=1.25) +
+                                                            geom_vline(aes(xintercept = min_10), col = 'blue',size=1.25) + 
+                                                            facet_wrap(~species,scales = 'free_x',nrow=2) + theme_bw() +  
+                                                            theme(text = element_text(size=18))
+     fixed.plt <- ggplot(diag.fixed) + geom_point(aes(x =response,y=model),size=2) + xlab(ax.lab)+ ylab("") + 
+                                       geom_vline(aes(xintercept = min_2), col = 'red',size=1.25) +
+                                       geom_vline(aes(xintercept = min_10), col = 'blue',size=1.25) + 
+                                       facet_wrap(~species,scales = 'free',nrow=2) + theme_bw() +  
+                                       theme(text = element_text(size=18))
+     d.plt <- plot_grid(field.plt,fixed.plt,NULL,NULL,nrow=2)
+  }
+  if(!input$diag %in% c('dic','cpo'))  
+  {
+      if(input$diag == 'waic') ax.lab <- "WAIC"
+      if(input$diag == 'RMSE') ax.lab <- "RMSE"
+      if(input$diag == 'MAE') ax.lab <- "MAE"
+    field.plt <-ggplot(diag.fields) + geom_point(aes(x =response,y=as.factor(era)),size=2) + xlab(ax.lab) +
+                                                             ylab("") + facet_wrap(~species,scales = 'free_x',nrow=2) + theme_bw() + 
+                                                            theme(text = element_text(size=18))
+    fixed.plt <-ggplot(diag.fixed) + geom_point(aes(x =response,y=model),size=2) + xlab(ax.lab) +
+                                                             ylab("") + facet_wrap(~species,scales = 'free',nrow=2) + theme_bw() + 
+                                                            theme(text = element_text(size=18))
+    d.plt <- plot_grid(field.plt,fixed.plt,NULL,NULL,nrow=2)
+  }
+  
+  if(input$diag == 'cpo')
+  {
+    ax.lab <- "CPO"
+    # This craziness makes it a frequency..., pretty ugly!
+    field.plt <-ggplot(diag.fields) + geom_point(aes(x =response,y=as.factor(era)),size=2) + xlab(ax.lab) + ylab("") + 
+                                                            facet_wrap(~species,scales = 'free_x',nrow=2) + theme_bw() + 
+                                                            theme(text = element_text(size=18))
+    fixed.plt <-ggplot(diag.fixed) + geom_point(aes(x =response,y=model),size=2) + xlab(ax.lab) +
+                                                             ylab("") + facet_wrap(~species,scales = 'free',nrow=2) + theme_bw() + 
+                                                            theme(text = element_text(size=18))
+    
+    cpo.field.plt <- ggplot(cpo.comps.fields, aes(x = cpo)) + geom_histogram(aes(y = ..count../tapply(..count..,..PANEL..,sum)[..PANEL..]),bins=60)  +                                   geom_vline(aes(xintercept = mn)) + 
+                    facet_wrap(~model + comp,nrow=3,dir='v') + geom_text(x = -0.25, y= 0.18,aes(label = paste("Median =", signif(mn,digits=2)))) + 
+                    theme_bw() + xlab("") + ylab("Frequency") + ylim(c(0,0.2)) + 
+                    theme(text = element_text(size=18))
+    
+    cpo.fixed.plt <- ggplot(cpo.comps.fixed, aes(x = cpo)) + geom_histogram(aes(y = ..count../tapply(..count..,..PANEL..,sum)[..PANEL..]),bins=60)  +                                   geom_vline(aes(xintercept = mn)) + 
+                         facet_wrap(~model + species,dir='v',nrow=4,scales='free_y') + 
+                         geom_text(x = -.35, y= 0.07,aes(label = paste("Median =", signif(mn,digits=2)))) + 
+                         theme_bw() + xlab("") + ylab("") + scale_y_continuous(n.break=4)+
+                         theme(text = element_text(size=18))
+                    
+    d.plt <-plot_grid(field.plt,fixed.plt,cpo.field.plt,cpo.fixed.plt,nrow =2)
+  }
+  
+  d.plt})
+})
+```
+  
+### Validation 
+
+<!-- #### Header -->
+**These results come from a 5 fold cross validation of the data **
+
+1. For each model a randomly chosen 20% of the data were partitioned into 1 of 5 *folds*
+2. The model was run 5 times with a different *fold* used as a validation each time
+3. Given the computational demands of this process *only* models with the 5 year fields were used.
+4. The results of the *prediction* folds are compared to the model *residuals* which contain 80% of the data
+5. For all statistics calculated 
+    - There is no evidence of any systematic bias in the validation results
+    - As expected the validation results are more variable
+    - The differences between the 3 models compared were negligible for both *cod* and *yellowtail*
+
+```{r}
+
+renderPlot({
+  #input$go_val
+  val.dat <- fold.res %>% ungroup() %>% dplyr::select(input$val,model.id,type,species)
+  names(val.dat) <- c('response','model.id','type','species')
+  #names(plt.dat) <- c("mn",'model','type','species')
+val.plt <- ggplot(val.dat) + geom_point(aes(y = response, x= model.id,colour = type),position = position_dodge(width=0.2),size=2) + xlab("Model") + ylab("")+
+                   facet_wrap(species~.,scales = 'free_x') + theme_bw() + scale_color_manual(values = c("blue","red")) + 
+                   theme(text = element_text(size=20),legend.title = element_blank())
+v.plt <- plot_grid(val.plt,NULL,nrow=2)
+v.plt
+})
+```
+
+
+<!-- Next up are the Spatial results -->
+
+Spatial Results
+=====================================
+
+Column {data-width=250 .sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+sliderInput("prob", label = "Encounter Probability",
+            min = 0, max = 1, value = 0.8, step = 0.05)
+radioButtons("species_sm","Which Species",
+            choices = c("Atlantic cod" = "cod",
+                        "Yellowtail flounder" = "yt"))
+selectInput("survey_sm","Which Survey",
+            choices = c("NMFS Spring" = "nmfs-spring_survey",
+                        "NMFS Fall" = "nmfs-fall_survey",
+                        "DFO RV" = "RV_survey"))
+
+actionButton("go",label="",icon =icon("redo"))
+
+# So we can do our reactive stuff here, which is potentially nice, this is essentially my 'conductive element"
+res <- reactive({
+          # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
+            input$go
+            isolate({
+            res <- pred.dat[[paste0(input$species_sm,"_PA ",input$survey_sm,sep="")]]
+            n.eras <- length(unique(res$years_5))
+            eras <- factor.2.number(unique(res$years_5))
+            # So the key is the last thing is the dataframe we want...
+            st_geometry(res) <- st_geometry(rep(mesh.grid,n.eras))
+            data.frame(res)
+            for(n in min(eras):max(eras))
+            {
+              yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(max = max(year)),3,4))
+              if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+              res$yrs[res$years_5==n] <- yrs
+            }
+            # # So calculating area is smart using that set units, though they are all idenitcal...
+             res$area <- res %>% st_area() %>% set_units("km^2")
+             res <- res %>% filter(pred >= input$prob)
+             res
+            #
+            #
+            # # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
+            }) #end isolate
+        })
+
+
+ cog <- reactive({
+            cog <- as.data.table(res())[,cog.calc(X,Y,pred), by = yrs]
+            cog <- st_as_sf(cog,coords = c('x','y'), crs= st_crs(mesh.grid), remove=F)
+
+        })
+
+ area.era <- reactive({
+                  area.era <- data.frame(res()) %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+                  #area.era
+                  loc.text = c(600000,4440000) # I might make this an input, but we'll see...
+                  area.era$X <- loc.text[1]
+                  area.era$Y <- loc.text[2]
+                  area.era <- st_as_sf(area.era,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
+                  n.eras <- length(unique(res()$years_5))
+                  lab <- NA
+                  for(k in 1:n.eras) lab[k] <- paste0("Area==~",round(area.era$tot.area[k],digits=0),"*km^2")
+                  area.era$lab <- lab
+                  area.era
+              })
+
+
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Area
+
+```{r}
+
+renderPlot({
+   # Set up my colour ramp for the maps, stolen from pectinid
+  # Note we need a couple of isolates and an action button trigger in hear as we have 2 input$ calls
+          input$go
+          isolate({
+          col <- addalpha(pals::viridis(101),1)
+          brk <- seq(input$prob,1,by=0.05)
+          if(length(brk) <= 6) hgt <- unit(0.5,'cm')
+          if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.75,'cm')
+          if(length(brk) > 12) hgt <- unit(2.5,'cm')
+          lims <- range(brk)
+          col <- col[((100*input$prob)+1):101]
+
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+
+
+    # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+    plt<- bp + geom_sf(data = res()  ,aes(fill = pred,colour=pred))+
+      facet_wrap(~yrs) +
+      coord_sf(datum=32619) + sf + sc + #theme_map() +
+      geom_sf_text(data = area.era() , aes(label = lab),parse=T) +
+      theme(legend.key.height =hgt,text = element_text(size=22)) +
+      #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
+      #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
+      # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
+      ggtitle(paste0("Encounter probability \u2265 ",input$prob))
+
+    plt
+          }) # end isolate
+})
+
+```
+
+### Video
+
+```{r, fig.width=10, fig.height=10}
+
+# Only make the image if I go to this page or if I change an input with this isolate.
+renderImage(deleteFile=F,{
+         input$go# Tell this to update when I hit the action button. 
+         isolate({
+          # Here's a hack to autmatically resize the figure to the size of the page
+          # That took a while to figure out!
+          wid <- names(session$clientData)[grepl('width',names(session$clientData))][1]
+          p.width <- (session$clientData[[wid]])#[grepl('width',names(session$clientData))][1])
+          ht <- names(session$clientData)[grepl('height',names(session$clientData))][1]
+          p.height <- (session$clientData[[ht]])#[grepl('width',names(session$clientData))][1])
+
+          # Set up my colour ramp for the maps, stolen from pectinid
+          col <- addalpha(pals::viridis(101),1)
+          brk <- seq(input$prob,1,by=0.05)
+          if(length(brk) <= 6) hgt <- unit(1,'cm')
+          if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(2,'cm')
+          if(length(brk) > 12) hgt <- unit(3,'cm')
+          lims <- range(brk)
+          col <- col[((100*input$prob)+1):101]
+
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          # A temp file to save the output.
+          # This file will be removed later by renderImage
+          #outfile <- tempfile(fileext='.gif')
+
+         saveGIF(
+         {
+          ani.options(interval = 2, nmax = 50)
+          eras <- unique(res()$yrs)
+          n.eras <- length(eras)
+          #count = 0
+          #vid <- NULL
+          for (p in 1:n.eras)
+          {
+            clp <- res() %>% filter(yrs == eras[p])
+            area.t <- area.era() %>% filter(yrs == eras[p])
+            vid <- bp + geom_sf(data = clp  ,aes(fill = pred,colour=pred))+
+                        coord_sf(datum=32619) + sf + sc  +
+                        geom_sf_text(data = area.t , aes(label = lab),parse=T,color="black") +
+                        theme(legend.key.height =hgt,text = element_text(size=22)) +# theme_map()+
+                        #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
+                        #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
+                        # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
+                        ggtitle(paste0("Encounter probability ",eras[p]))
+            print(vid)
+          }
+          #}
+          }, movie.name = paste0(direct.proj,'Paper_2_SDMs/test.gif'),ani.width = p.width, ani.height = p.height)
+
+         # Here's how you bring in an external image
+         list(src = paste0(direct.proj,"Paper_2_SDMs/test.gif"),
+         contentType = 'image/gif')
+         #ui <- fluidPage(plotOutput(output$vid))
+         }) # end isolate
+})
+
+
+
+```
+
+
+### Center of Gravity
+
+```{r}
+
+renderPlot({
+  input$go# Tell this to update when I hit the action button. 
+  isolate({
+   cog.sd.plt <-  bp2 + geom_label(data = cog(),aes(x=x, y = y,label=substr(yrs,3,8)),nudge_x = -7500,nudge_y=3500,size=4) +
+      geom_errorbar(data = cog(),aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0,size=2)  +
+      geom_errorbar(data = cog(),aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0,size=2)  +
+      xlab("") + ylab("") + theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
+   # Sadly something appears to be wrong with plotly and shiny right now so just ggplots for now...
+   cog.sd.plt })
+   #shiny::renderUI({plotly::plotlyOutput("p_env", height = "100%")})
+
+})
+```
+
+
+
+<!-- Next up are the figures for model prediction and Validation-->
+
+Model Prediction
+=====================================
+
+
+Column {data-width=250 .sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+sliderInput("prob_pred", label = "Encounter Probability",
+            min = 0, max = 1, value = 0.8, step = 0.1)
+radioButtons("species_pred","Which Species",
+            choices = c("Atlantic cod" = "cod",
+                        "Yellowtail flounder" = "yt"))
+checkboxGroupInput('year_surv', "Survey Results",choices = 2017:2019)
+#checkboxGroupInput('pred_field', "Prediction Field",choices = c("3 year","5 year", "10 year"))
+
+actionButton("go_pred",label="",icon =icon("redo"))
+
+preds <- reactive({
+          # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
+  
+            input$go_pred
+            isolate({
+            if(input$species_pred == 'cod') preds <- pred.dat[[paste0(input$species_pred,"_PA RV_survey",sep="")]]
+            if(input$species_pred == 'yt') preds <- pred.dat[[paste0(input$species_pred,"_PA nmfs-spring_survey",sep="")]]
+            n.eras <- 1
+            eras <- max(factor.2.number(unique(preds$years_5)))
+            preds <- preds %>% filter(years_5 == eras)
+            # So the key is the last thing is the dataframe we want...
+            st_geometry(preds) <- st_geometry(rep(mesh.grid,n.eras))
+            yrs <- paste0(substr(dat.final %>% filter(years_5 == eras, survey == unique(preds$survey)) %>% summarise(min = min(year)),3,4),"-",
+                            substr(dat.final %>% filter(years_5 == eras, survey == unique(preds$survey)) %>% summarise(max = max(year)),3,4))
+            preds$yrs <- yrs
+            # # So calculating area is smart using that set units, though they are all idenitcal...
+            preds$area <- preds %>% st_area() %>% set_units("km^2")
+            preds <- preds %>% filter(pred >= input$prob_pred)
+            preds
+            # # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
+            })# end isolate
+        })
+
+area.era.pred <- reactive({
+                  area.era <- data.frame(preds())  %>% summarize(tot.area = sum(area))
+                  #area.era
+                  loc.text = c(600000,4440000) # I might make this an input, but we'll see...
+                  area.era$X <- loc.text[1]
+                  area.era$Y <- loc.text[2]
+                  area.era <- st_as_sf(area.era,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
+                  area.era$lab <- paste0("Area==~",round(area.era$tot.area,digits=0),"*km^2")
+                  area.era
+              })
+
+
+
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+### Survey Observations
+
+```{r}
+
+renderPlot({
+
+          input$go_pred
+          isolate({
+          if(input$species_pred == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
+          if(input$species_pred == 'cod') {spec <- "Cod"; surv <- "RV survey"}
+          col <- addalpha(pals::viridis(101),1)
+          col.pts <- c(col[1],col[101])
+          brk <- seq(input$prob_pred,1,by=0.1)
+          if(length(brk) <= 6) hgt <- unit(0.5,'cm')
+          if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
+          if(length(brk) > 12) hgt <- unit(2,'cm')
+          lims <- range(brk)
+          col <- col[((100*input$prob_pred)+1):101]
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          predict.pts <- all.resids %>% filter(year %in% input$year_surv, species == paste0(input$species_pred,"_PA"))
+          sfp <- scale_colour_manual(values = col.pts,name = "Response")
+    #
+    # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+    plt.pred <- bp2 + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
+       geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T) +
+       geom_sf(data=predict.pts,aes(response,fill = response),color='white',shape=21,size=4) +
+       theme(legend.key.height =hgt,text = element_text(size=22)) +
+       ggtitle(paste("Encounter probability \u2265",input$prob_pred, spec,surv))+
+      coord_sf(x=c(380000,780000), y = c(4200000,4750000))
+    plt.pred
+          }) # end isolate
+})
+```
+
+### Prediction Residuals
+
+```{r}
+
+renderPlot({
+          input$go_pred
+          isolate({
+          if(input$species_pred == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
+          if(input$species_pred == 'cod') {spec <- "Cod"; surv <- "RV survey"}
+          col <- addalpha(pals::viridis(101),1)
+          col2 <- addalpha(pals::coolwarm(200),1)
+          brk <- seq(input$prob_pred,1,by=0.1)
+          #if(length(brk) <= 6) hgt <- unit(0.5,'cm')
+          #if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
+          hgt <- unit(1.25,'cm')
+          lims <- range(brk)
+          col <- col[((100*input$prob_pred)+1):101]
+          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+          sfp <- scale_fill_gradientn(colours = col2, limits=c(-1,1),breaks=seq(-1,1,by=0.2),name="Prediction error")
+          predict.pts <- all.resids %>% filter(year %in% input$year_surv, species == paste0(input$species_pred,"_PA"))
+    #
+    # # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+    plt.pred <- bp2 + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
+      #geom_sf_text(data = area.era()[nrow(area.era()),] , aes(label = lab),parse=T) +
+        new_scale("fill") +  sfp +
+      geom_sf(data=predict.pts,aes(fitted,fill = resid),color='white',shape=21,size=4) +
+      theme(legend.key.height =hgt,text = element_text(size=22)) +
+      ggtitle(paste("Encounter probability \u2265",input$prob_pred, spec,surv))+
+     coord_sf(x=c(380000,780000), y = c(4200000,4750000))
+    plt.pred
+          }) # end isolate
+})
+```
