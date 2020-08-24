@@ -729,7 +729,7 @@ Column {data-width=250 .sidebar}
 ```{r}
 
 sliderInput("prob_pred", label = "Encounter Probability",
-            min = 0, max = 1, value = 0.8, step = 0.1)
+            min = 0, max = 1, value = 0.8, step = 0.05)
 radioButtons("species_pred","Which Species",
             choices = c("Atlantic cod" = "cod",
                         "Yellowtail flounder" = "yt"))
@@ -790,9 +790,9 @@ renderPlot({
           if(input$species_pred == 'cod') {spec <- "Cod"; surv <- "RV survey"}
           col <- addalpha(pals::viridis(101),1)
           col.pts <- c(col[1],col[101])
-          brk <- seq(input$prob_pred,1,by=0.1)
-          if(length(brk) <= 6) hgt <- unit(0.5,'cm')
-          if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
+          brk <- seq(input$prob_pred,1,by=0.05)
+          if(length(brk) < 6) hgt <- unit(0.5,'cm')
+          if(length(brk) >= 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
           if(length(brk) > 12) hgt <- unit(2,'cm')
           lims <- range(brk)
           col <- col[((100*input$prob_pred)+1):101]
