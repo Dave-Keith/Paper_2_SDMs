@@ -4,7 +4,7 @@
 rm(list=ls())
 #direct <- "/Users/user/DFO_2017/"
 direct <- "Y:/Projects/GB_time_area_closure_SPERA/"
-#direct <- "d:/Projects/GB_time_area_closure_SPERA/"
+#direct <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"
 
 
 # Clean up the workspace and load packages I need

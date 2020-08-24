@@ -45,10 +45,16 @@ library(cowplot)
 library(sf)
 library(sp)
 library(RCurl)
+library(units)
+library(nn)
 # Don't use scientific notation please!!
 options(scipen=999)
+# Set a nice theme for the ggplots unless I override
+theme_set(theme_classic(base_size = 10))
 # Bring in our freind pectinid
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
+#eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
+#eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_inla_mesh_to_sf.R",ssl.verifypeer = FALSE)))
+#source("D:/Github/Offshore/Assessment_fns/DK/Maps/convert_inla_mesh_to_sf.R")
 source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
 
 
@@ -62,6 +68,26 @@ direct.proj <- "D:/Github/Paper_2_SDMs/"; direct.tmp <- direct.proj
 # Some crap we need to load
 load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
 load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
+load(paste0(direct.proj,"Data/INLA_meshes.RData"))
+load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
+# Coorindates for CA1, CA2, and the cod/yellowtail closures
+CA1 <- st_read(dsn ="d:/github/Offshore/GIS_layers/DK/other_boundaries/CA1.shp")
+CA1 <- st_transform(CA1,crs = 32619)
+CA2 <- st_read(dsn = "d:/github/Offshore/GIS_layers/DK/other_boundaries/CA2.shp")
+CA2 <- st_transform(CA2,crs = 32619)
+yt.closures <- st_read(dsn ="d:/github/Offshore/GIS_layers/DK/other_boundaries/yt_closures.shp")
+cod.closures <- st_read(dsn = "d:/github/Offshore/GIS_layers/DK/other_boundaries/cod_closures.shp")
+gba.surv <- st_read(dsn = "d:/github/Offshore/GIS_layers/DK/survey_boundaries/GBa.shp")
+gbb.surv <- st_read(dsn = "d:/github/Offshore/GIS_layers/DK/survey_boundaries/GBb.shp")
+# Make an 'all of gb' sf object
+gb.surv <- st_union(gba.surv,gbb.surv)
+# This removes holes, still have one small artifact out to the east, but it matters little...
+gb.surv <- nngeo::st_remove_holes(gb.surv)
+gb.surv <- st_transform(gb.surv,crs= 32619)
+scal.tot.area <- st_area(gb.surv) %>% set_units("km^2")
+# Put all the closures together so we can easily plot them.
+all.closures <- c(st_geometry(CA1),st_geometry(CA2),st_geometry(yt.closures),st_geometry(cod.closures))
+
 
 # The data, in sf form
 dat.sf <- st_as_sf(dat.final, coords = c('lon','lat'),crs = 4326,remove=F)
@@ -69,11 +95,14 @@ dat.sf <- st_transform(dat.sf,crs = 32619)
 # Lets get a basemap set up for the rest of the show.
 bp.zoom <- pecjector(c_sys = 32619,area = list(x=c(380000,780000), y = c(4430000,4750000),crs = 32619),add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F) #+ theme_map()
 
-
 # Same but with bathy underlain
-bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl',bathy = c(10,'s',200)),c_sys = 32619,buffer = 0.05) + theme_map()
+bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl',bathy = c(10,'s',200)),c_sys = 32619,buffer = 0.2) + theme_map()
 
-
+# Maybe I want this sometime.
+# bp.closures <- bp.bathy + geom_sf(data= CA1,fill = NA,color = 'red',size=1) + 
+#                           geom_sf(data= CA2,fill = NA,color = 'green',size=1) +
+#                           geom_sf(data= yt.closures, fill= NA,color = 'blue',size=1) + 
+#                           geom_sf(data=cod.closures, fill= NA,color = 'black',size=1) 
 # A figure providing a general overview of the area....
 
 # #  A nice clean polygon of the core of the GB area we want to deal with here.
@@ -86,8 +115,8 @@ bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 
 
 fig.over <- bp.bathy + geom_sf(data = clp.pred,fill=NA) + geom_sf(data= dat.sf,alpha = 0.25,shape=19,size=0.5,color='black',fill='black')
 
-save_plot(paste0(direct.proj,"Results/Figures/GB_overview.png"),fig.over,base_width =6,base_height =8,units='in')
-save_plot(paste0(direct.proj,"Results/Figures/GB_overview.tiff"),fig.over,base_width =6,base_height =8,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/GB_overview.png"),fig.over,base_width =6,base_height =8,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/GB_overview.tiff"),fig.over,base_width =6,base_height =8,units='in')
  
 fig_overview <- paste0(direct.proj,"Results/Figures/GB_overview.png")
 # Map of SST and Depth 
@@ -95,14 +124,12 @@ fig_overview <- paste0(direct.proj,"Results/Figures/GB_overview.png")
 #Depth and SST Maps - Commented out as these should be basically static plots
 # First, I need a map showing the spatial distribution of the SST and Depth
 
-load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
 
 #
 #
-# # And subset the sst data to this.
- sst.gb <- st_intersection(sst.sf,clp.pred)
-
- depth.gb <- st_intersection(depth.sf,clp.pred)
+# # And subset the sst and depth data to this.
+sst.gb <- st_intersection(sst.sf,clp.pred)
+depth.gb <- st_intersection(depth.sf,clp.pred)
 # # So for both species depth patterns over 150 meters are pretty flat, so I can just lump them altogether so we can see the key depth bits
  depth.gb$Band_1[depth.gb$Band_1 <= -150] <- -150
 #
@@ -115,13 +142,216 @@ load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
 # Now combine these two figures and save it, because the save is so slow I've turned it off after making this figure the first time
 # If you want to remake it uncomment the saves below
 p.covars <- plot_grid(sst.map, depth.map,align = "h", nrow = 1)
-save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.tiff"),p.covars,base_width =8,base_height =4,units='in')
-save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png"),p.covars,base_width =8,base_height =4,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.tiff"),p.covars,base_width =8,base_height =4,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png"),p.covars,base_width =8,base_height =4,units='in')
 sst_depth_spatial <- paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png")
 
 
 
+###  Getting data for use in the paper  ###
+
+n.stations <- dat.final %>% group_by(survey) %>% summarise(ns = n())
+n.nmfs.spring <- n.stations$ns[n.stations$survey == 'nmfs-spring']
+n.rv <- n.stations$ns[n.stations$survey == 'RV']
+n.nmfs.fall <- n.stations$ns[n.stations$survey == 'nmfs-fall']
 ################################
+
+# I'm gonna need to plot my mesh on the nice bp object
+mesh.gf$crs <- crs("+init=epsg:32619") 
+# THis is a very minor tweak on a custom function from Finn Lindgren https://groups.google.com/forum/#!topic/r-inla-discussion-group/z1n1exlZrKM
+mesh.sf <- inla.mesh2sf(mesh.gf)
+
+plt.mesh <- pecjector(area = "GOM",buffer=0.4, c_sys = 32619,plot=F,
+                      add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),
+                      add_custom = list(obj = mesh.sf$triangles, size=0.5,color= 'grey30')) + 
+                      theme_map()
+#save_plot(paste0(direct.proj,"Results/Figures/mesh.tiff"),plt.mesh,base_width =8,base_height =8,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/mesh.png"),plt.mesh,base_width =8,base_height =8,units='in')
+mesh <- paste0(direct.proj,"Results/Figures/mesh.png")
+
+
+# First I think we need to discuss the model selection and show some of those plots
+# Then I  think we need to show the depth and sst relationships for each model and survey
+# Then we can show how the random fields evolve
+# Show how the Center of gravity of the species distributions has shifted
+
+# Then we do a case study showing how the encounter probabilities overlap with each of the closures (CAI, CAII, Cod, Yellowtail)
+# for relevant species.  "Time series" showing the encounter probability inside closures, percent of the highest quartile probability area inside the closures should do the trick I think?
+# I think this is what I want for this, I think...
+load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
+load(paste0(direct.proj,"data/INLA_meshes.RData"))
+load(paste0(direct.proj,"data/Prediction_mesh.RData"))
+# Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
+load(paste0(direct.proj,"data/INLA_mesh_input_data.RData"))
+
+# This is a function to get a summary of the area in which the probability is >= some probability.
+# We can then compare all of GB, the scallop fishery area, CA1, CA2, yt and cod closures to see 
+# How these all compare
+# Note that this function is assuming a lot of crap that is loaded above is loaded... it's not the greatest function ever...
+# Could be handy for a dashboard though.
+pred.fun <- function(species = 'cod',survey = "RV",prob = 0.75,mesh = mesh.grid,closure.yrs = 2007:2016)
+{
+
+  res <- pred.dat[[paste0(species,"_PA ",survey,"_survey",sep="")]]
+  n.eras <- length(unique(res$years_5))
+  eras <- factor.2.number(unique(res$years_5))
+  # Chose your closure...
+  if(species == 'cod') the.closure <- cod.closures
+  if(species == 'yt') the.closure <- yt.closures
+  the.closure <- the.closure %>% filter(year %in% closure.yrs)
+  the.closure$area <- the.closure %>% st_area() %>% set_units("km^2")
+  # So the key is the last thing is the dataframe we want...
+  st_geometry(res) <- st_geometry(rep(mesh,n.eras))
+  data.frame(res)
+  res$strt.yr <- res$year
+  res$end.yr <- res$year
+  for(n in min(eras):max(eras))
+  {
+    yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year)),3,4),"-",
+                  substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(max = max(year)),3,4))
+    strt.yr <- dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year))
+    end.yr <- dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(max = max(year))
+    if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+    res$yrs[res$years_5==n] <- yrs
+    res$strt.yr[res$years_5==n] <- strt.yr
+    res$end.yr[res$years_5==n] <- end.yr
+  }  
+    # # So calculating area is smart using that set units, though they are all identical...
+  res$area <- res %>% st_area() %>% set_units("km^2")
+  
+  # Now we can look at CA1 and CA2 results
+  in.CA1 <- st_intersection(res,CA1)
+  in.CA1$area <- in.CA1 %>% st_area() %>% set_units("km^2")
+  # What is mean encounter probability inside CA1 during each era?
+  inside.CA1 <- in.CA1 %>% group_by(yrs) %>% summarise(mn = mean(pred),sd = sd(pred))
+  
+  in.CA2 <- st_intersection(res,CA2)
+  in.CA2$area <- in.CA2 %>% st_area() %>% set_units("km^2")
+  # What is mean encounter probability inside CA1 during each era?
+  inside.CA2 <- in.CA2 %>% group_by(yrs) %>% summarise(mn = mean(pred),sd = sd(pred))
+  
+  # Now the cod and yellowtail closures is a bit more nuanced as we want to look year by year... Here's how we'd do it...
+  in.closure <- NULL
+  for(i in 1:length(closure.yrs)) 
+  {
+    in.closure[[i]] <- st_intersection(res %>% filter(strt.yr <= closure.yrs[i] & end.yr >= closure.yrs[i]), the.closure %>% filter(year == closure.yrs[i]))
+    in.closure[[i]]$area <- in.closure[[i]] %>% st_area() %>% set_units("km^2")
+    in.closure[[i]]$year <- closure.yrs[i]
+  }
+  in.closure <- do.call("rbind",in.closure)
+  browser()
+  inside.closure <- in.closure %>% group_by(year) %>% summarise(mn = mean(pred),lci = mean(pred.lci), uci = mean(pred.uci))
+  # So we can compare this 'scallop survey area', against the closure, I think this will show that 
+  # the closures are tending to be in higher than bank average areas of the bank.
+  in.scal <- st_intersection(res,gb.surv)
+  in.scal$area <- in.scal %>% st_area() %>% set_units("km^2")
+  inside.scal <- in.scal %>% group_by(yrs) %>% summarise(mn = mean(pred),lci = mean(pred.lci), uci = mean(pred.uci))
+  
+  # What we can do next is get the area in which the P(E) is >= 75% over time on GB to show that it's a big area compared to the closures...
+  hi.CA1 <- in.CA1 %>% filter(pred >=prob) %>% group_by(yrs) %>% summarise(tot.area = sum(area,na.rm=T), mn.hi = mean(pred),lci.hi = mean(pred.lci),uci.hi = mean(pred.uci))
+  hi.CA2 <- in.CA2 %>% filter(pred >=prob) %>% group_by(yrs) %>% summarise(tot.area = sum(area,na.rm=T), mn.hi = mean(pred),lci.hi = mean(pred.lci),uci.hi = mean(pred.uci))
+  hi.scal <- in.scal %>% filter(pred >=prob) %>% group_by(yrs) %>% summarise(tot.area = sum(area,na.rm=T), mn.hi = mean(pred),lci.hi = mean(pred.lci),uci.hi = mean(pred.uci))
+  st_geometry(hi.scal) <- NULL
+  hi.bank <- res %>% filter(pred >=prob) %>% group_by(yrs) %>% summarise(tot.area = sum(area,na.rm=T), mn.hi = mean(pred),lci.hi = mean(pred.lci),uci.hi = mean(pred.uci))
+  st_geometry(hi.bank) <- NULL
+  # Of all the high area on GB how much is in Canada
+  hi.scal$prop.of.GB <- as.numeric(hi.scal$tot.area/hi.bank$tot.area)
+  # What proportion of the main Canadian scallop fishery contains high encounter probabiliyt
+  hi.scal$prop.scal.hi <- as.numeric(hi.scal$tot.area / scal.tot.area)
+  
+  # The closures are a bit different here as we get a number every year, if the closure is in the same place we can get the same estimate...
+  hi.closure <- in.closure %>% filter(pred >=prob) %>% group_by(year) %>% summarise(tot.area = sum(area,na.rm=T), mn.hi = mean(pred),lci.hi = mean(pred.lci),uci.hi = mean(pred.uci))
+  st_geometry(hi.closure) <- NULL
+  if(nrow(hi.closure) == nrow(the.closure)) hi.closure$prop.hi <- as.numeric(hi.closure$tot.area/the.closure$area)
+  # HAD TO STOP HERE< THIS IS STILL BROKEN!!!
+  # Add a bunch of 0's to hi.closure
+  if(nrow(hi.closure) != nrow(the.closure))
+  {
+    # Need to pad the difference...
+    dif <-  nrow(the.closure) - nrow(hi.closure)
+    hi.closure <- bind_rows(hi.closure,matrix(NA,nrow = dif,ncol = ncol(hi.closure)),dimnames= list(1:dif,names(hi.closure)))
+    for(i in 1:nrow(the.closure))
+    {
+      if(!the.closure$year[i] %in% hi.closure$year) hi.closure$year[nrow(hi.closure)+1] <- the.closure$year[i]
+    }
+  }
+  # Now get the propotion of the high encounter probability inside the scallop fishery that is covered by the closures.
+  hi.closure$prop.hi.of.scal.area <- NA
+  # Need this wack loop to get the bank area lined up with the closure year
+  for(i in 1:nrow(hi.closure))
+  {
+    tmp <- hi.closure[i,]
+    tmp.eras <- as.numeric(substr(hi.scal$yrs,1,4))
+    opt <- which(tmp.eras >= tmp$year)[1] # Always take the first one...
+    if(length(opt) > 0) hi.closure$prop.hi.of.scal.area[i] <- as.numeric(hi.closure$tot.area[i]/hi.scal$tot.area[opt])
+    if(is.na(opt))      hi.closure$prop.hi.of.scal.area[i] <- as.numeric(hi.closure$tot.area[i]/hi.scal$tot.area[nrow(hi.scal)])
+  } # end for(i in 1:nrow(hi.closure))
+#    browser()
+
+  # # So you can see the increase in the proportion of high encounter probabiliy being found in Canada
+  # ggplot(hi.scal) + geom_point(aes(x = yrs,y=prop.can)) + xlab("Era") + ylab("Proportion of high encounter probability inside Canadian Scallop Fishery Domain") + ylim(c(0,1.01))
+  # # Change in area classifed as high encounter probabilty on Georges Bank
+  # ggplot(hi.bank) + geom_point(aes(x = yrs,y=as.numeric(tot.area))) + xlab("Era") + ylab("Area of high encounter probability all of Georges Bank") 
+  # ggplot(hi.CA1) + geom_point(aes(x = yrs,y=as.numeric(tot.area))) + xlab("Era") + ylab("Area of high encounter probability inside Closed Area 1")
+  # ggplot(hi.CA2) + geom_point(aes(x = yrs,y=as.numeric(tot.area))) + xlab("Era") + ylab("Area of high encounter probability inside Closed Area 2")
+  # ggplot(hi.scal) + geom_point(aes(x = yrs,y=as.numeric(tot.area))) + xlab("Era") + ylab("Area of high encounter probability inside Canadian Scallop Fishery Domain") 
+  # 
+  # # Proportion of high encounter probability inside the closure
+  # ggplot(hi.closure) + geom_point(aes(x = year,y=prop.hi)) + xlab("Era") + ylab("Proportion of high encounter probability inside the closure") + ylim(c(0,1.01))
+  # # Proportion of Candian high encoutner probability that is inside the closure
+  # ggplot(hi.closure) + geom_point(aes(x = year,y=prop.hi.of.scal.area)) + xlab("Era") + ylab("Proportion of Scallop Fishery high encounter probability found inside the closure") + 
+
+return(list(scal = hi.scal,bank = hi.bank,CA1= hi.CA1,CA2=hi.CA2,closure=hi.closure))
+
+} # end function
+
+hi.yt.spring <- pred.fun(survey = 'nmfs-spring',species = 'yt')
+
+# So how about a panel showing the Area of 'high' encounter probability on the bank and inside the Canadian Scallop fishery domain.
+plt.hi.yt.spring.bank <- ggplot(hi.yt.spring$bank) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
+plt.hi.yt.spring.scal <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
+plt.hi.yt.spring.scal.prop.GB <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(prop.of.GB),x = yrs)) + xlab("Era") + ylab("Porportion")
+plt.hi.yt.spring.scal.prop.can <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(prop.scal.hi),x = yrs)) + xlab("Era") + ylab("Porportion")
+
+p.yt.spring.bank <- plot_grid(plt.hi.yt.spring.bank,
+                         plt.hi.yt.spring.scal,
+                         plt.hi.yt.spring.scal.prop.GB,
+                         plt.hi.yt.spring.scal.prop.can)
+
+# Now we can do something similar with the closures...
+plt.hi.yt.closure <- ggplot(hi.yt.spring$closure) + geom_point(aes(y = as.numeric(tot.area),x = year)) + xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) + ylim(c(0,300))
+plt.prop.of.hi.scal.area <- ggplot(hi.yt.spring$closure) + geom_point(aes(y = as.numeric(prop.hi.of.scal.area),x = year)) + xlab("Year") + ylab("Proportion") 
+p.yt.closure <- plot_grid(plt.hi.yt.closure,plt.prop.of.hi.scal.area)
+
+# For CA1 and CA2 
+plt.hi.CA1.CA2 <- ggplot(hi.yt.spring$CA1) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
+                                             geom_point(data = hi.yt.spring$CA2,aes(y = as.numeric(tot.area),x = yrs),fill='blue',shape=22) + 
+                                             xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) 
+
+# Now the exact same figures for cod during spawning...
+hi.cod.winter <- pred.fun(survey = 'nmfs-fall',species = 'cod')
+
+# So how about a panel showing the Area of 'high' encounter probability on the bank and inside the Canadian Scallop fishery domain.
+plt.hi.cod.winter.bank <- ggplot(hi.cod.winter$bank) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
+plt.hi.cod.winter.scal <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
+plt.hi.cod.winter.scal.prop.GB <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(prop.of.GB),x = yrs)) + xlab("Era") + ylab("Porportion")
+plt.hi.cod.winter.scal.prop.can <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(prop.scal.hi),x = yrs)) + xlab("Era") + ylab("Porportion")
+
+p.cod.winter.bank <- plot_grid(plt.hi.cod.winter.bank,
+                         plt.hi.cod.winter.scal,
+                         plt.hi.cod.winter.scal.prop.GB,
+                         plt.hi.cod.winter.scal.prop.can)
+
+# Now we can do something similar with the closures...
+plt.hi.cod.closure <- ggplot(hi.cod.winter$closure) + geom_point(aes(y = as.numeric(tot.area),x = year)) + xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) + ylim(c(0,300))
+plt.prop.of.hi.scal.area <- ggplot(hi.cod.winter$closure) + geom_point(aes(y = as.numeric(prop.hi.of.scal.area),x = year)) + xlab("Year") + ylab("Proportion") 
+p.cod.closure <- plot_grid(plt.hi.cod.closure,plt.prop.of.hi.scal.area)
+
+# For CA1 and CA2 
+plt.hi.CA1.CA2 <- ggplot(hi.cod.winter$CA1) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
+                                             geom_point(data = hi.cod.winter$CA2,aes(y = as.numeric(tot.area),x = yrs),fill='blue',shape=22) + 
+                                             xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) 
+
 
 ```
 
@@ -129,7 +359,7 @@ sst_depth_spatial <- paste0(direct.proj,"Results/Figures/depth_and_sst_fields.pn
 
 # Introduction
 
-Sustainable management of marine fisheries has been recognized as a critical challenge facing society in the 21^st^ century [@cbdAichiBiodiversityTargets2018]. The challenges facing sustainable fisheries management are multifaceted and include complex socio-economic, political, and scientific interactions (CITE). Environmental and ecological research has been at the heart of fisheries science for well over a century (CITE). From the early days of fisheries science it was recognized that an inability to fully account for spatial processes was potentially a serious issues to surmount (CITE). Many of the traditional fisheries methods developed, and still currently used to assess fisheries, required strong assumptions about the underlying spatial processes; during the development of these methods these assumptions were often identified as potentially problematic (CITE Ricker, BH, and maybe Carl and Ray's book). A number of methods had subsequently been developed to attempt to account for spatial processes, but computational limitations had restricted the complexity of these models (CITE - Allowing for multiple fleets was one of these).  In more recent years a flurry of computational and statistical advances have enabled the development of models in which spatial processes can be more rigorously addressed within these traditional fisheries modelling frameworks (CITE Anders, Kasper, Jim, Yihao, and Raph if ready too).
+Sustainable management of marine fisheries has been recognized as a critical challenge facing society in the 21^st^ century [@cbdAichiBiodiversityTargets2018]. The challenges facing sustainable fisheries management are multifaceted and include complex socio-economic, political, and scientific interactions (CITE). Environmental and ecological research has been at the heart of fisheries science for well over a century (CITE). From the early days of fisheries science it was recognized that an inability to fully account for spatial processes was potentially a serious issues to surmount (CITE). Many of the traditional fisheries methods developed, and still currently used to assess fisheries, required strong assumptions about the underlying spatial processes; during the development of these methods these assumptions were often identified as potentially problematic (CITE Ricker, BH, and maybe Carl and Ray's book). A number of methods had subsequently been developed to attempt to account for spatial processes, but computational limitations had restricted the complexity of these models (CITE - Allowing for multiple fleets was one of these).  In more recent years a flurry of computational and statistical advances have enabled the development of models in which spatial processes can be more rigorously addressed within these traditional fisheries modelling frameworks (CITE Anders, Kasper, Jim, Yihao, and Raph if ready too).)
 
 One of the earliest modelling frameworks developed to explicitly account for spatial patterns and processes were species distribution models with (SDMs; CITE early SDM work both terrestrial and fisheries). These models use environmental data along information about the species to map the likelihood of encountering a species across some land(sea)-scape and originated with attempts to map terrestrial plant distributions (CITE).  In the marine realm SDM's have been used to assist with the development of Marine Protect Areas (MPAs), MPA networks, Species at Risk (SAR), name some other shit (CITE).  In many cases SDM's assume that there is no temporal change in the relationship between the environment cues and the response of the species to these cues; these SDM's essentially provide a snapshot in time based on available data. To better predict future states more sophisticated SDM's frameworks have been developed in which the underlying relationships can vary both in time and space (CITE).
 
@@ -163,28 +393,40 @@ Georges Bank, located in the northwest Atlantic straddling the US-Canada maritim
 
 ### Data
 
-Survey data was obtained from the Fisheries and Oceans Canada (DFO) winter RV survey from 1987-2019 and the National Marine Fisheries Service (NMFS) spring and fall groundfish surveys from 1972-2019.  The DFO-winter survey on Georges Bank typically occurs in February and early March, the NMFS-spring survey typically occurs in April and May, while the NMFS-fall survey generally takes place between September and November.  For all surveys only tows deemed *successful* were used in this analysis.  This resulted in XXX tows from the DFO-RV survey, XXX tows from the NMFS-spring survey, and XXX tows from the NMFS-fall survey.
+Survey data were obtained from the Fisheries and Oceans Canada (DFO) winter RV survey from 1987-2019 and the National Marine Fisheries Service (NMFS) spring and fall groundfish surveys from 1972-2019.  The DFO-winter survey on Georges Bank typically occurs in February and early March, the NMFS-spring survey typically occurs in April and May, while the NMFS-fall survey generally takes place between September and November.  For all surveys only tows deemed *successful* were used in this analysis.  This resulted in `r n.rv` tows from the DFO-winter survey, `r n.nmfs.spring` tows from the NMFS-spring survey, and `r n.nmfs.fall` tows from the NMFS-fall survey.
 
 ### Environmental covariates
 
-A suite of XX environmental variables with spatial information were obtained for this analysis (Table XX).  To eliminate redundant variables, variance Inflation Factors (VIFs) were calculated for all variables and any variables with VIF scores > 3 were removed.  This procedure was repeated until no variables remained with a VIF score > 3 (CITE ZUUR). Using the remaining XX variables a Principle Component Analysis (PCA) was undertaken, the top 4 PCA components were retained (these accounted for XX% of the variability in the data) and included as covarates for the models that follow.
+A suite of 21 environmental variables with spatial information were obtained for this analysis (Table XX).  To eliminate redundant variables, variance Inflation Factors (VIFs) were calculated for all variables and any variables with VIF scores > 3 were removed.  This procedure was repeated until no variables remained with a VIF score > 3 (CITE ZUUR). Using the remaining 16 variables a Principle Component Analysis (PCA) was undertaken for each survey using the data from station locations for each survey these environmental data with the top 4 PCA components retained (these accounted for at least 80% of the variability in the data) and were included as covariates for the models that follow.
 
 ### Statistical Analysis
 
-R-INLA was used, go find some good language for explaining GMRF's, SPDE's and mesh and such.  For the INLA models data up to 2016 was used, 2017-2019 was excluded from the main analysis and used to see how well the models were able to predict future distributions for both species.  For all analyses the response variable was presence absence of the species of interest.  WRITE OUT THE MODEL STRUCTURE 
+A Bayesian hierarchical methodology was implemented using the Integrated Nested Laplace Approximation approach available within the R Statistical Programming software R-INLA (CITE R and INLA).  In recent years R-INLA has seen a rapid increase in use to model species distributions in both within the terrestrial and marine realms (CITE SOME PAPERS). This methodology solves stochastic partial differential equations on a spatial triangulated mesh; this mesh is typically based on the data available (CITE RUE). To avoid edge effects the mesh is extended beyond the boundaries of the data, the mesh used in this study included `r mesh.gf$n` vertices (Figure \@ref(fig:mesh)).
 
-Four random fields were compared for each species and each survey, these included a) a static random field, b) a random field which changed every 10 years, c) a random field which changed every 5 years, and d) and random field which could change every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. using all the data the 10 year field for the DFO-winter survey, the random fields would include the years 2010-2019, 2000-2009, 1990-1999, and 1987-1989). Models with the same covariate structure but different random fields were compared using WAIC and DIC.  In all cases the static spatial field was a significantly worse model than the models with multiple random fields and the results just show the results from the 10/5/3 year random fields.
+For the INLA models data up to `r max(dat.final$year)` were used, while survey data from 2017-2019 were excluded from the main analysis and used only as testing data.  For all analyses the response variable was presence absence of the species of interest ($EP_{it}$) and a *Bernoulli* GLM was utilized within R-INLA.
 
-The different covariate models were compared using the 10 year random field model (due to computational constraints).  Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually.  Model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC of 2 when compared to the best performing model. This analysis was done for both species and all three surveys.  From this analysis only 3 model terms were identified as having a significant effect on the distribution of each species.  For both cod and yellowtail, depth (DEP),  the average sea surface temperature between 19XX and 20XX (SST), the average chlorophyll concentration during these years (CHL) were retained, while for yellowtail the sediment type (SED) was also retained.  These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also used (SST + DEP + SED).  All continuous variables were modelling as a R-INLA random walk 2  which allows for non-linear relationships between the response and each variable.
+$$ EP_{it} \sim Bernoulli(\pi_{it}) $$
 
-### Model Validation
+\begin{align}
+  E(EP_{it}) = \pi_it  \qquad and \qquad  var(EP_it) = \pi_it \times (1-\pi_it)
+\end{align}
 
-Five fold cross validation was used to test the predictive performance of the models.  The data were randomly divided into 5 subsets and trained using 4 of the subsets, the 5the dataset was treated as a testing dataset to determine how well the model was able to predict. Model performance was measured by comparing the the model residuals from the training data to the prediction error from the testing data, the metrics used for this comparison were Root Mean Squared Error (RMSE), Mean Average Error (MAE), and the standard deviation (SD).  For computational reasons the models compared using 5 fold cross validation were (GO LOOK AT WHAT MODELS I COMPARED) using the 5 year random fields.
+$$ logit(pi_{it}) = \alpha + f(Cov_{it}) + u_{it} $$
 
-### Model Prediction
+$$ u_{it} \sim GMRF(0,\Sigma) $$
 
-Data from 2017-2019 was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years away from the most recent survey information. The predictive error was estimated using RMSE, MAE, and SD and compared to the residual error from each model.
 
+Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually, all continuous covariates were modelled using the INLA random walk $'rw2'$ smoother which allows for non-linear relationships between the response and each variable. The continuous covariates were centred at their mean value and scaled by their standard deviation, covariates which were highly skewed (e.g. depth) were log transformed before being standardized. 
+
+Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) a independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC and DIC.  In all cases the static spatial field was a significantly worse model than the models with multiple random fields and the results shown here use the 10/5/3 year random fields.
+
+The different covariate models were compared using the 10 year random field model (due to computational constraints).   Model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC of 2 when compared to the best performing model. This analysis was done for both species and all three surveys.  From this analysis only 3 model terms were identified as having a significant effect on the encounter probability for each species.  For both cod and yellowtail, depth (DEP),  the average sea surface temperature between 1997 and 2008 (SST), the average chlorophyll concentration between 1997 and 2008 (CHL) were retained, while for yellowtail the sediment type (SED) was also retained.  These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also used (SST + DEP + SED).  
+
+### Model Validation and Prediction
+
+Five fold cross validation was used to test the predictive performance of the models. The data were randomly divided into 5 subsets and trained using 4 of the subsets, the 5the dataset was treated as a testing dataset to determine how well the model was able to predict out of sample data. Model performance was measured by comparing the the model residuals from the training data to the prediction error from the testing data, the metrics used for this comparison were Root Mean Squared Error (RMSE), Mean Average Error (MAE), and the standard deviation (SD).  For computational reasons the models compared using 5 fold cross validation were intercept only, DEP, DEP + SST, the 5 year random field was used for all model validation for both species.
+
+In addition to the 5-fold cross validation the survey data from 2017-2019 was excluded from the models and was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years after the final year of survey data. The predictive error was estimated using RMSE, MAE, and SD and this was compared to the residual error from each model.
 
 # Results
 
@@ -299,6 +541,10 @@ knitr::include_graphics(fig_overview)
 knitr::include_graphics(sst_depth_spatial)
 ```
 
+```{r Mesh, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Mesh used for INLA."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(mesh)
+```
 
 
 \newpage
