@@ -73,7 +73,8 @@ load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
 load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
 load(paste0(direct.proj,"data/Prediction_mesh.RData"))
-
+# This contains all the WAIC and DIC model selection diagnostics + some plots of these, see Step 6b for what was done here.
+load(paste0(direct.proj,"data/model_diagnostics_for_papers.RData"))
 # I think this is what I want for this, I think...
 # Grab the coorindates for CA1, CA2, and the cod/yellowtail closures which are inside this other_boundaries zip file.
 temp <- tempfile()
@@ -192,7 +193,13 @@ mesh <- paste0(direct.proj,"Results/Figures/mesh.png")
 
 
 # First I think we need to discuss the model selection and show some of those plots
-
+# Possible plots here include these, I suspect a few of these might be supplements or I do like pointing folks to my
+# Github repo where you can run the shiny app and look at the output rather than a big boring appendix.
+plt.waic.fe
+plt.waic.10
+plt.waic.5
+plt.cod.waic.rf
+plt.yt.rf.waic
 
 # Then I think we need to show the depth and sst relationships for each model and survey
 
@@ -333,7 +340,7 @@ Each variable retained after the VIF analysis along with the 4 PCA components we
 
 Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC and DIC.  In all cases the static spatial field was an inferior model when compared to models with multiple random fields and the results discussed here use the 10/5/3 year random fields.
 
-Model selection for the different covariate models was undertaken using a static random field (due to computational constraints). Model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC of 2 when compared to the best performing model, more parsimonious models were favoured when the difference in WAIC/DIC was less than 2 between two models. This analysis was done for both species and all three surveys.  From this analysis only 4 model terms were identified as potentially having a significant effect on the encounter probability for each species.  For both cod and yellowtail, depth (DEP), the average sea surface temperature between 1997 and 2008 (SST), the average chlorophyll concentration between 1997 and 2008 (CHL) were retained, while for yellowtail the sediment type (SED) was also retained.  These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also compared (SST + DEP + SED).  For cod the the final model selection favoured an additive DEP and SST model, while for yellowtail the inclusion of an additional SED term was favoured.
+Initial model selection for the different covariate models was undertaken using a static random field (due to computational constraints) by adding individual covariates. For this first analysis covariates were retained if low WAIC and DIC scores were observed across multiple models. For cod this analysis identified depth (DEP) and the average sea surface temperature between 1997 and 2008 (SST) as having low WAIC and DIC scores in 2 of the 3 models.  For yellowtail, depth (DEP) was the primary covariate observed, in addition sediment grain size (SED), and the average chlorophyll concentration between 1997 and 2008 (CHL) were retained due to their low scores in one survey. These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) for both species and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also compared (SST + DEP + SED).  For cod the the final model selection favoured an additive DEP and SST model, while for yellowtail the inclusion of an additional SED term was favoured. For this step, model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC/DIC of 2 when compared to the best performing model, more parsimonious models were favoured when the difference in WAIC/DIC was less than 2 between two models.
 
 ### Model Validation and Prediction
 
@@ -342,6 +349,10 @@ Five fold cross validation was used to test the predictive performance of the mo
 In addition to the 5-fold cross validation the survey data from 2017-2019 was excluded from the models and was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years after the final year of survey data. The predictive error was estimated using RMSE, MAE, and SD and this was compared to the residual error from each model.
 
 # Results
+
+### Model Selection
+
+
 
 ### Environmental Variables
 
