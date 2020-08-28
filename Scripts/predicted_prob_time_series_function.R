@@ -14,6 +14,7 @@
 
 pred.fun <- function(pred.dat = pred.dat, species = 'cod',survey = "RV",prob = 0.75,mesh = mesh.grid,closure.yrs = 2007:2016)
 {
+  factor.2.number <- function(x) {as.numeric(levels(x))[x]}
   
   res <- pred.dat[[paste0(species,"_PA ",survey,"_survey",sep="")]]
   n.eras <- length(unique(res$years_5))
@@ -62,7 +63,6 @@ pred.fun <- function(pred.dat = pred.dat, species = 'cod',survey = "RV",prob = 0
     in.closure[[i]]$year <- closure.yrs[i]
   }
   in.closure <- do.call("rbind",in.closure)
-  browser()
   inside.closure <- in.closure %>% group_by(year) %>% summarise(mn = mean(pred),lci = mean(pred.lci), uci = mean(pred.uci))
   # So we can compare this 'scallop survey area', against the closure, I think this will show that 
   # the closures are tending to be in higher than bank average areas of the bank.

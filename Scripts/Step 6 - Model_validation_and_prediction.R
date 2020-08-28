@@ -1458,7 +1458,7 @@ head(pred.res)
 ############################# SECTION 6 ################################ SECTION 6  ###################################################################
 ############################# SECTION 6 ################################ SECTION 6  ###################################################################
 ############################# SECTION 6 ################################ SECTION 6  ###################################################################
-# This final section is MODEL PREDICTIONS, which is pretty simple, we take the best Cod/YT models
+# This used to be final section is MODEL PREDICTIONS, which is pretty simple, we take the best Cod/YT models
 # for each survey and and we add a prediction stack to them which will predict at the vertex of
 # every mesh node using the SST and depth information along with the random field.
 # Problem is this blows up the A matrix and really grinds down the computation so
@@ -2251,7 +2251,7 @@ sd.mod <- mod.res %>% group_by(model,year) %>% summarise(sd=sd(resid),rmse = RMS
 
 #save(all.resids,file = paste0(direct.proj,"Results/INLA_2017_2019_prediction_error_summary.RData"))
 
-# This simulates entirely random data between -1 and 1, so if I had no ability to predict the future this is what we'd see...
+# This simulates entirely random data between 0 and 1, so if I had no ability to predict the future this is what we'd see...
 null.rmse <- NA
 for(i in 1:10000) null.rmse[i] <- RMSE(runif(50,0,1),rbinom(50,1,0.5))
 # So the null model expectation is an RMSE of around 0.577, probability itself doesn't actually matter which makes some sense since everything is bounded and random

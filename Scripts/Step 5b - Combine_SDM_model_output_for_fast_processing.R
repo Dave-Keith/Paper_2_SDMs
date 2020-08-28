@@ -281,7 +281,7 @@ eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_f
 eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
-source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
+#source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
 eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/predict_fields.R",ssl.verifypeer = FALSE)))
 

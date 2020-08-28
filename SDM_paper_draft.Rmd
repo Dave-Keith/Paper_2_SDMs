@@ -26,7 +26,7 @@ abstract: Sustainably managing marine fisheries has long been recognized as a gl
 
 <!-- Bring in the data + figures  -->
 ```{r echo=F, include=F, paged.print=FALSE}
-# Bring in the data
+##### Bring in the data and functions
 library(readxl)
 library(xtable)
 library(pander)
@@ -47,20 +47,22 @@ library(sp)
 library(RCurl)
 library(units)
 library(nngeo)
-# Don't use scientific notation please!!
-options(scipen=999)
-# Set a nice theme for the ggplots unless I override
-theme_set(theme_classic(base_size = 10))
+library(data.table)
+library(ggthemes)
+library(caret)
+
 # Bring in our freind pectinid
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Assessment_fns/master/Maps/convert_inla_mesh_to_sf.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
+
 #eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_inla_mesh_to_sf.R",ssl.verifypeer = FALSE)))
 #source("D:/Github/Offshore/Assessment_fns/DK/Maps/convert_inla_mesh_to_sf.R")
 #source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
+# Here's a little custom function that you can use to set breakpoints in a facet plot, this one is set up the make Depth and SST's look nice
+# used in combo with scale_x_continuous() in ggplot
+breaks_fun <- function(x)  if (max(x) > 15) { seq(0,300,50) } else { seq(8, 14, 0.5) }
 
-
-# Function in case you need it for transforming propotion data to not have 0's and 1's.  
-beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/" 
 direct.proj <- "D:/Github/Paper_2_SDMs/"; direct.tmp <- direct.proj
 # The prediction prop function
@@ -73,8 +75,13 @@ load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
 load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
 load(paste0(direct.proj,"data/Prediction_mesh.RData"))
+load(paste0(direct.proj,"data/All_model_covariate_fits.RData"))
+load(paste0(direct.proj,"data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+load(paste0(direct.proj,"data/INLA_2017_2019_prediction_error_summary.RData"))
+
 # This contains all the WAIC and DIC model selection diagnostics + some plots of these, see Step 6b for what was done here.
 load(paste0(direct.proj,"data/model_diagnostics_for_papers.RData"))
+direct.proj <-  direct.tmp 
 # I think this is what I want for this, I think...
 # Grab the coorindates for CA1, CA2, and the cod/yellowtail closures which are inside this other_boundaries zip file.
 temp <- tempfile()
@@ -112,12 +119,26 @@ scal.tot.area <- st_area(gb.surv) %>% set_units("km^2")
 # Put all the closures together so we can easily plot them.
 all.closures <- c(st_geometry(CA1),st_geometry(CA2),st_geometry(yt.closures),st_geometry(cod.closures))
 
-
-# The data, in sf form
+# The survey data, in sf form
 dat.sf <- st_as_sf(dat.final, coords = c('lon','lat'),crs = 4326,remove=F)
 dat.sf <- st_transform(dat.sf,crs = 32619)
+##### Done with data loading... Set some variables for the rest of the show..
+
+
+# Don't use scientific notation please!!
+options(scipen=999)
+# Set a nice theme for the ggplots unless I override
+theme_set(theme_few(base_size = 12))
+# Function in case you need it for transforming propotion data to not have 0's and 1's.  
+beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
+
+
+################################
+###  Figures for the paper  ###
+################################
+
 # Lets get a basemap set up for the rest of the show.
-bp.zoom <- pecjector(c_sys = 32619,area = list(x=c(380000,780000), y = c(4430000,4750000),crs = 32619),add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F) #+ theme_map()
+bp.zoom <- pecjector(c_sys = 32619,area = list(x=c(580000,780000), y = c(4530000,4680000),crs = 32619),add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F) #+ theme_map()
 
 # Same but with bathy underlain
 bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl',bathy = c(10,'s',200)),c_sys = 32619,buffer = 0.2) + theme_map()
@@ -136,20 +157,37 @@ bp.bathy <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(land =
 # # Now use the bigger clp with this other clip to get a nice clipped GB area...
  clp.pred <- st_intersection(clp,clp.poly)
 
-
-fig.over <- bp.bathy + geom_sf(data = clp.pred,fill=NA) + geom_sf(data= dat.sf,alpha = 0.25,shape=19,size=0.5,color='black',fill='black')
-
+#####
+# Figure Overview of the area, don't need to run this every time, if I want to change something uncomment the below
+#####
+#fig.over <- bp.bathy + geom_sf(data = clp.pred,fill=NA) + geom_sf(data= dat.sf,alpha = 0.25,shape=19,size=0.5, color='black', fill='black')
 #save_plot(paste0(direct.proj,"Results/Figures/GB_overview.png"),fig.over,base_width =6,base_height =8,units='in')
 #save_plot(paste0(direct.proj,"Results/Figures/GB_overview.tiff"),fig.over,base_width =6,base_height =8,units='in')
- 
 fig_overview <- paste0(direct.proj,"Results/Figures/GB_overview.png")
-# Map of SST and Depth 
-################################
+
+#####
+# Figure MESH don't need to run this every time, if I want to change something uncomment the below
+#####
+
+# I'm gonna need to plot my mesh on the nice bp object
+mesh.gf$crs <- crs("+init=epsg:32619") 
+# THis is a very minor tweak on a custom function from Finn Lindgren https://groups.google.com/forum/#!topic/r-inla-discussion-group/z1n1exlZrKM
+mesh.sf <- inla.mesh2sf(mesh.gf)
+
+#plt.mesh <- pecjector(area = "GOM",buffer=0.4, c_sys = 32619,plot=F,
+#                      add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),
+#                      add_custom = list(obj = mesh.sf$triangles, size=0.5,color= 'grey30')) + 
+#                      theme_map()
+#save_plot(paste0(direct.proj,"Results/Figures/mesh.tiff"),plt.mesh,base_width =8,base_height =8,units='in')
+#save_plot(paste0(direct.proj,"Results/Figures/mesh.png"),plt.mesh,base_width =8,base_height =8,units='in')
+mesh <- paste0(direct.proj,"Results/Figures/mesh.png")
+
+#####
+# Figure SST and Depth Mapping don't need to run this every time, if I want to change something uncomment the below
+#####
+# Perhaps I need Sed num in here now...
 #Depth and SST Maps - Commented out as these should be basically static plots
 # First, I need a map showing the spatial distribution of the SST and Depth
-
-
-#
 # Don't run this unless we have to as these are pretty big, just want to load the object from this which is already saved.
 # # And subset the sst and depth data to this.
 # sst.gb <- st_intersection(sst.sf,clp.pred)
@@ -168,111 +206,527 @@ fig_overview <- paste0(direct.proj,"Results/Figures/GB_overview.png")
 #save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png"),p.covars,base_width =8,base_height =4,units='in')
 sst_depth_spatial <- paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png")
 
+#####
+# Figure Model Selection with 1 FE.
+#####
+# First I think we need to discuss the model selection and show some of those plots
+# plt.waic.fe
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_single_fe_waic.tiff"),plt.waic.fe,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_single_waic.png"),plt.waic.fe,base_width =8,base_height =8,units='in')
+diag.waic.single.fe <- paste0(direct.proj,"Results/Figures/Diagnostics_single_waic.png")
 
-
-###  Getting data for use in the paper  ###
-
-n.stations <- dat.final %>% group_by(survey) %>% summarise(ns = n())
-n.nmfs.spring <- n.stations$ns[n.stations$survey == 'nmfs-spring']
-n.rv <- n.stations$ns[n.stations$survey == 'RV']
-n.nmfs.fall <- n.stations$ns[n.stations$survey == 'nmfs-fall']
-################################
-
-# I'm gonna need to plot my mesh on the nice bp object
-mesh.gf$crs <- crs("+init=epsg:32619") 
-# THis is a very minor tweak on a custom function from Finn Lindgren https://groups.google.com/forum/#!topic/r-inla-discussion-group/z1n1exlZrKM
-mesh.sf <- inla.mesh2sf(mesh.gf)
-
-plt.mesh <- pecjector(area = "GOM",buffer=0.4, c_sys = 32619,plot=F,
-                      add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),
-                      add_custom = list(obj = mesh.sf$triangles, size=0.5,color= 'grey30')) + 
-                      theme_map()
-#save_plot(paste0(direct.proj,"Results/Figures/mesh.tiff"),plt.mesh,base_width =8,base_height =8,units='in')
-#save_plot(paste0(direct.proj,"Results/Figures/mesh.png"),plt.mesh,base_width =8,base_height =8,units='in')
-mesh <- paste0(direct.proj,"Results/Figures/mesh.png")
-
-
+#####
+# Figure Model Selection step 2 with multiple FE's using the 10 random field
+#####
 # First I think we need to discuss the model selection and show some of those plots
 # Possible plots here include these, I suspect a few of these might be supplements or I do like pointing folks to my
+#plt.waic.10
 # Github repo where you can run the shiny app and look at the output rather than a big boring appendix.
-plt.waic.fe
-plt.waic.10
-plt.waic.5
-plt.cod.waic.rf
-plt.yt.rf.waic
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_2_covars_fe_waic.tiff"),plt.waic.10,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_2_covars_fe_waic.png"),plt.waic.10,base_width =8,base_height =8,units='in')
+diag.waic.2.covars.fe <- paste0(direct.proj,"Results/Figures/Diagnostics_2_covars_fe_waic.png")
 
-# Then I think we need to show the depth and sst relationships for each model and survey
+#####
+# Figure Model Selection step 3 with most complex models, using 5 year random field
+#####
+# First I think we need to discuss the model selection and show some of those plots
+# Possible plots here include these, I suspect a few of these might be supplements or I do like pointing folks to my
+#plt.waic.5
+# Github repo where you can run the shiny app and look at the output rather than a big boring appendix.
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_3_covars_fe_waic.tiff"),plt.waic.5,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_3_covars_fe_waic.png"),plt.waic.5,base_width =8,base_height =8,units='in')
+diag.waic.3.covars.fe <- paste0(direct.proj,"Results/Figures/Diagnostics_3_covars_fe_waic.png")
+
+####
+# Figure Model Selection for the Random fields
+####
+# plt.rf.waic
+# # Github repo where you can run the shiny app and look at the output rather than a big boring appendix.
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_rf_waic.tiff"),plt.rf.waic,base_width =8,base_height =12,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_rf_waic.png"),plt.rf.waic,base_width =8,base_height =12,units='in')
+diag.waic.rf <- paste0(direct.proj,"Results/Figures/Diagnostics_rf_waic.png")
 
 
-# Then we can show how the random fields evolve, just pick the RV cod and NMFS-spring for YT for main (can add appendix or perhaps
-# have a Shiny app where these things can be compared
+# Then I think we need to show the depth and sst relationships for each model and survey, 
+####
+# Figure Cod Now we show the cod results, put depth and SST on the same figure. For cod we use the 5 year field and SST + Dep model
+####
+
+# Get the data for SST and Depth for each model.
+dat.winter <- dat.final %>% dplyr::filter(survey == "RV")
+dat.winter$depth_log <- log(-dat.winter$comldepth)
+dat.winter$depth_cen <-  dat.winter$depth_log - mean(dat.winter$depth_log) 
+dat.winter$sst_avg_cen <- scale(dat.winter$sst_avg)
+# Spring survey data...
+dat.spring <- dat.final %>% dplyr::filter(survey == "nmfs-spring")
+dat.spring$depth_log <- log(-dat.spring$comldepth)
+dat.spring$depth_cen <-  dat.spring$depth_log - mean(dat.spring$depth_log) 
+dat.spring$sst_avg_cen <- scale(dat.spring$sst_avg)
+# Fall survey data
+dat.fall <- dat.final %>% dplyr::filter(survey == "nmfs-fall")
+dat.fall$depth_log <- log(-dat.fall$comldepth)
+dat.fall$depth_cen <-  dat.fall$depth_log - mean(dat.fall$depth_log) 
+dat.fall$sst_avg_cen <- scale(dat.fall$sst_avg)      
+## Now get the Intercept, depth terms, and sst terms from your model as appropriate
+int.cod.winter <- all.mod.fixed[["cod_PA RV survey model.depth.sst_st_5"]]
+depth.cod.winter <- all.mod.depth[["cod_PA RV survey model.depth.sst_st_5"]]
+sst.cod.winter <- all.mod.sst[["cod_PA RV survey model.depth.sst_st_5"]]
+depth.cod.winter$response <- inv.logit(depth.cod.winter$mean + int.cod.winter$mean[1])
+depth.cod.winter$UCI <- inv.logit(depth.cod.winter$`0.975quant` + int.cod.winter$mean[1])
+depth.cod.winter$LCI <- inv.logit(depth.cod.winter$`0.025quant` + int.cod.winter$mean[1])
+depth.cod.winter$covar <- exp(depth.cod.winter$ID + mean(dat.winter$depth_log))
+depth.cod.winter$survey <- "Winter"
+depth.cod.winter$fe <- "Depth"
+sst.cod.winter$response <- inv.logit(sst.cod.winter$mean + int.cod.winter$mean[1])
+sst.cod.winter$UCI <- inv.logit(sst.cod.winter$`0.975quant` + int.cod.winter$mean[1])
+sst.cod.winter$LCI <- inv.logit(sst.cod.winter$`0.025quant` + int.cod.winter$mean[1])
+sst.cod.winter$covar <- sst.cod.winter$ID* attr(dat.winter$sst_avg_cen,"scaled:scale") + attr(dat.winter$sst_avg_cen,"scaled:center")
+sst.cod.winter$survey <- "Winter"
+sst.cod.winter$fe <- "SST"
+# spring survey
+int.cod.spring <- all.mod.fixed[["cod_PA nmfs-spring survey model.depth.sst_st_5"]]
+depth.cod.spring <- all.mod.depth[["cod_PA nmfs-spring survey model.depth.sst_st_5"]]
+sst.cod.spring <- all.mod.sst[["cod_PA nmfs-spring survey model.depth.sst_st_5"]]
+depth.cod.spring$response <- inv.logit(depth.cod.spring$mean + int.cod.spring$mean[1])
+depth.cod.spring$UCI <- inv.logit(depth.cod.spring$`0.975quant` + int.cod.spring$mean[1])
+depth.cod.spring$LCI <- inv.logit(depth.cod.spring$`0.025quant` + int.cod.spring$mean[1])
+depth.cod.spring$covar <- exp(depth.cod.spring$ID + mean(dat.spring$depth_log))
+depth.cod.spring$survey <- "Spring"
+depth.cod.spring$fe <- "Depth"
+sst.cod.spring$response <- inv.logit(sst.cod.spring$mean + int.cod.spring$mean[1])
+sst.cod.spring$UCI <- inv.logit(sst.cod.spring$`0.975quant` + int.cod.spring$mean[1])
+sst.cod.spring$LCI <- inv.logit(sst.cod.spring$`0.025quant` + int.cod.spring$mean[1])
+sst.cod.spring$covar <- sst.cod.spring$ID* attr(dat.spring$sst_avg_cen,"scaled:scale") + attr(dat.spring$sst_avg_cen,"scaled:center")
+sst.cod.spring$survey <- "Spring"
+sst.cod.spring$fe <- "SST"
+# Fall survey
+int.cod.fall <- all.mod.fixed[["cod_PA nmfs-fall survey model.depth.sst_st_5"]]
+depth.cod.fall <- all.mod.depth[["cod_PA nmfs-fall survey model.depth.sst_st_5"]]
+sst.cod.fall <- all.mod.sst[["cod_PA nmfs-fall survey model.depth.sst_st_5"]]
+depth.cod.fall$response <- inv.logit(depth.cod.fall$mean + int.cod.fall$mean[1])
+depth.cod.fall$UCI <- inv.logit(depth.cod.fall$`0.975quant` + int.cod.fall$mean[1])
+depth.cod.fall$LCI <- inv.logit(depth.cod.fall$`0.025quant` + int.cod.fall$mean[1])
+depth.cod.fall$covar <- exp(depth.cod.fall$ID + mean(dat.fall$depth_log))
+depth.cod.fall$survey <- "Fall"
+depth.cod.fall$fe <- "Depth"
+sst.cod.fall$response <- inv.logit(sst.cod.fall$mean + int.cod.fall$mean[1])
+sst.cod.fall$UCI <- inv.logit(sst.cod.fall$`0.975quant` + int.cod.fall$mean[1])
+sst.cod.fall$LCI <- inv.logit(sst.cod.fall$`0.025quant` + int.cod.fall$mean[1])
+sst.cod.fall$covar <- sst.cod.fall$ID* attr(dat.fall$sst_avg_cen,"scaled:scale") + attr(dat.fall$sst_avg_cen,"scaled:center")
+sst.cod.fall$survey <- "Fall"
+sst.cod.fall$fe <- "SST"
+
+# Stitch it all together into something very tidyverse.
+cod.fe.res <- data.frame(response = c(depth.cod.winter$response,sst.cod.winter$response,
+                                      depth.cod.spring$response,sst.cod.spring$response,
+                                      depth.cod.fall$response,sst.cod.fall$response),
+                         covar    = c(depth.cod.winter$covar,sst.cod.winter$covar,
+                                      depth.cod.spring$covar,sst.cod.spring$covar,
+                                      depth.cod.fall$covar,sst.cod.fall$covar),
+                         UCI      = c(depth.cod.winter$UCI,sst.cod.winter$UCI,
+                                      depth.cod.spring$UCI,sst.cod.spring$UCI,
+                                      depth.cod.fall$UCI,sst.cod.fall$UCI),
+                         LCI      = c(depth.cod.winter$LCI,sst.cod.winter$LCI,
+                                      depth.cod.spring$LCI,sst.cod.spring$LCI,
+                                      depth.cod.fall$LCI,sst.cod.fall$LCI),
+                         survey   = factor(c(depth.cod.winter$survey,sst.cod.winter$survey,
+                                      depth.cod.spring$survey,sst.cod.spring$survey,
+                                      depth.cod.fall$survey,sst.cod.fall$survey),levels = c("Winter","Spring","Fall")),
+                         fe    = c(depth.cod.winter$fe,sst.cod.winter$fe,
+                                      depth.cod.spring$fe,sst.cod.spring$fe,
+                                      depth.cod.fall$fe,sst.cod.fall$fe))
+                       
+# Let's only plot this up to a depth of 300 meters, past that isn't particularly interesting
+cod.fe.res <- cod.fe.res %>% filter(covar <= 300)
+
+# So this should be the money plot
+plt.cod.fe <- ggplot(cod.fe.res) + geom_line(aes(x = covar, y = response)) + 
+                     geom_ribbon(aes(x = covar,ymax = UCI,ymin = LCI),fill = 'blue',alpha=0.5)+
+                     facet_wrap(~fe + survey,scales='free_x',ncol = 3,strip.position = 'top') + 
+                     scale_x_continuous(breaks=breaks_fun) + 
+                     xlab("") + ylab("Probability") + ylim(c(0,1))
+
+save_plot(paste0(direct.proj,"Results/Figures/Cod_fixed_effects.tiff"),plt.cod.fe,base_width =12,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Cod_fixed_effects.png"),plt.cod.fe,base_width =12,base_height =8,units='in')
+cod.fe <- paste0(direct.proj,"Results/Figures/Cod_fixed_effects.png")
 
 
-# Show how the Center of gravity of the species distributions has shifted
+####
+# Figure YT Now we show the Yellowtail  results, put depth and SST on the same figure.
+####
+
+int.yt.winter <- all.mod.fixed[["yt_PA RV survey model.depth.sed.sst_st_3"]]
+depth.yt.winter <- all.mod.depth[["yt_PA RV survey model.depth.sed.sst_st_3"]]
+sst.yt.winter <- all.mod.sst[["yt_PA RV survey model.depth.sed.sst_st_3"]]
+depth.yt.winter$response <- inv.logit(depth.yt.winter$mean + int.yt.winter$mean[1])
+depth.yt.winter$UCI <- inv.logit(depth.yt.winter$`0.975quant` + int.yt.winter$mean[1])
+depth.yt.winter$LCI <- inv.logit(depth.yt.winter$`0.025quant` + int.yt.winter$mean[1])
+depth.yt.winter$covar <- exp(depth.yt.winter$ID + mean(dat.winter$depth_log))
+depth.yt.winter$survey <- "Winter"
+depth.yt.winter$fe <- "Depth"
+# Let's only plot this up to a depth of 300 meters, past that isn't particularly interesting, have to do this here b/c of factor in covar for yt
+depth.yt.winter <- depth.yt.winter %>% filter(covar <= 300)
+sst.yt.winter$response <- inv.logit(sst.yt.winter$mean + int.yt.winter$mean[1])
+sst.yt.winter$UCI <- inv.logit(sst.yt.winter$`0.975quant` + int.yt.winter$mean[1])
+sst.yt.winter$LCI <- inv.logit(sst.yt.winter$`0.025quant` + int.yt.winter$mean[1])
+sst.yt.winter$covar <- sst.yt.winter$ID* attr(dat.winter$sst_avg_cen,"scaled:scale") + attr(dat.winter$sst_avg_cen,"scaled:center")
+sst.yt.winter$survey <- "Winter"
+sst.yt.winter$fe <- "SST"
+int.yt.winter$response <-  c(inv.logit(int.yt.winter$mean[1]),inv.logit(int.yt.winter$mean[1] + int.yt.winter$mean[2:3]))
+int.yt.winter$UCI <-  c(inv.logit(int.yt.winter$`0.975quant`[1]),inv.logit(int.yt.winter$mean[1] + int.yt.winter$`0.975quant`[2:3]))
+int.yt.winter$LCI <-  c(inv.logit(int.yt.winter$`0.025quant`[1]),inv.logit(int.yt.winter$mean[1] + int.yt.winter$`0.025quant`[2:3]))
+int.yt.winter$survey <- "Winter"
+int.yt.winter$fe <- "Sed"
+rownames(int.yt.winter) <- c("Intercept", "Sed-3","Sed-4")
+# spring survey
+int.yt.spring <- all.mod.fixed[["yt_PA nmfs-spring survey model.depth.sed.sst_st_3"]]
+depth.yt.spring <- all.mod.depth[["yt_PA nmfs-spring survey model.depth.sed.sst_st_3"]]
+sst.yt.spring <- all.mod.sst[["yt_PA nmfs-spring survey model.depth.sed.sst_st_3"]]
+depth.yt.spring$response <- inv.logit(depth.yt.spring$mean + int.yt.spring$mean[1])
+depth.yt.spring$UCI <- inv.logit(depth.yt.spring$`0.975quant` + int.yt.spring$mean[1])
+depth.yt.spring$LCI <- inv.logit(depth.yt.spring$`0.025quant` + int.yt.spring$mean[1])
+depth.yt.spring$covar <- exp(depth.yt.spring$ID + mean(dat.spring$depth_log))
+depth.yt.spring$survey <- "Spring"
+depth.yt.spring$fe <- "Depth"
+# Let's only plot this up to a depth of 300 meters, past that isn't particularly interesting, have to do this here b/c of factor in covar for yt
+depth.yt.spring <- depth.yt.spring %>% filter(covar <= 300)
+
+sst.yt.spring$response <- inv.logit(sst.yt.spring$mean + int.yt.spring$mean[1])
+sst.yt.spring$UCI <- inv.logit(sst.yt.spring$`0.975quant` + int.yt.spring$mean[1])
+sst.yt.spring$LCI <- inv.logit(sst.yt.spring$`0.025quant` + int.yt.spring$mean[1])
+sst.yt.spring$covar <- sst.yt.spring$ID* attr(dat.spring$sst_avg_cen,"scaled:scale") + attr(dat.spring$sst_avg_cen,"scaled:center")
+sst.yt.spring$survey <- "Spring"
+sst.yt.spring$fe <- "SST"
+int.yt.spring$response <-  c(inv.logit(int.yt.spring$mean[1]),inv.logit(int.yt.spring$mean[1] + int.yt.spring$mean[2:3]))
+int.yt.spring$UCI <-  c(inv.logit(int.yt.spring$`0.975quant`[1]),inv.logit(int.yt.spring$mean[1] + int.yt.spring$`0.975quant`[2:3]))
+int.yt.spring$LCI <-  c(inv.logit(int.yt.spring$`0.025quant`[1]),inv.logit(int.yt.spring$mean[1] + int.yt.spring$`0.025quant`[2:3]))
+int.yt.spring$survey <- "Spring"
+int.yt.spring$fe <- "Sed"
+rownames(int.yt.spring) <- c("Intercept", "Sed-3","Sed-4")
+# Fall survey
+int.yt.fall <- all.mod.fixed[["yt_PA nmfs-fall survey model.depth.sed.sst_st_3"]]
+depth.yt.fall <- all.mod.depth[["yt_PA nmfs-fall survey model.depth.sed.sst_st_3"]]
+sst.yt.fall <- all.mod.sst[["yt_PA nmfs-fall survey model.depth.sed.sst_st_3"]]
+depth.yt.fall$response <- inv.logit(depth.yt.fall$mean + int.yt.fall$mean[1])
+depth.yt.fall$UCI <- inv.logit(depth.yt.fall$`0.975quant` + int.yt.fall$mean[1])
+depth.yt.fall$LCI <- inv.logit(depth.yt.fall$`0.025quant` + int.yt.fall$mean[1])
+depth.yt.fall$covar <- exp(depth.yt.fall$ID + mean(dat.fall$depth_log))
+depth.yt.fall$survey <- "Fall"
+depth.yt.fall$fe <- "Depth"
+# Let's only plot this up to a depth of 300 meters, past that isn't particularly interesting, have to do this here b/c of factor in covar for yt
+depth.yt.fall <- depth.yt.fall %>% filter(covar <= 300)
 
 
+sst.yt.fall$response <- inv.logit(sst.yt.fall$mean + int.yt.fall$mean[1])
+sst.yt.fall$UCI <- inv.logit(sst.yt.fall$`0.975quant` + int.yt.fall$mean[1])
+sst.yt.fall$LCI <- inv.logit(sst.yt.fall$`0.025quant` + int.yt.fall$mean[1])
+sst.yt.fall$covar <- sst.yt.fall$ID* attr(dat.fall$sst_avg_cen,"scaled:scale") + attr(dat.fall$sst_avg_cen,"scaled:center")
+sst.yt.fall$survey <- "Fall"
+sst.yt.fall$fe <- "SST"
+int.yt.fall$response <-  c(inv.logit(int.yt.fall$mean[1]),inv.logit(int.yt.fall$mean[1] + int.yt.fall$mean[2:3]))
+int.yt.fall$UCI <-  c(inv.logit(int.yt.fall$`0.975quant`[1]),inv.logit(int.yt.fall$mean[1] + int.yt.fall$`0.975quant`[2:3]))
+int.yt.fall$LCI <-  c(inv.logit(int.yt.fall$`0.025quant`[1]),inv.logit(int.yt.fall$mean[1] + int.yt.fall$`0.025quant`[2:3]))
+int.yt.fall$survey <- "Fall"
+int.yt.fall$fe <- "Sed"
+rownames(int.yt.fall) <- c("Intercept", "Sed-3","Sed-4")
+
+# Stitch it all together into something very tidyverse.
+yt.fe.res <- data.frame(response = c(depth.yt.winter$response,sst.yt.winter$response,int.yt.winter$response,
+                                      depth.yt.spring$response,sst.yt.spring$response,int.yt.spring$response,
+                                      depth.yt.fall$response,sst.yt.fall$response,int.yt.fall$response),
+                         covar    = c(depth.yt.winter$covar,sst.yt.winter$covar, rownames(int.yt.winter),
+                                      depth.yt.spring$covar,sst.yt.spring$covar, rownames(int.yt.spring),
+                                      depth.yt.fall$covar,sst.yt.fall$covar,rownames(int.yt.fall)),
+                         UCI      = c(depth.yt.winter$UCI,sst.yt.winter$UCI,int.yt.winter$UCI,
+                                      depth.yt.spring$UCI,sst.yt.spring$UCI,int.yt.spring$UCI,
+                                      depth.yt.fall$UCI,sst.yt.fall$UCI,int.yt.fall$UCI),
+                         LCI      = c(depth.yt.winter$LCI,sst.yt.winter$LCI,int.yt.winter$LCI,
+                                      depth.yt.spring$LCI,sst.yt.spring$LCI,int.yt.spring$LCI,
+                                      depth.yt.fall$LCI,sst.yt.fall$LCI,int.yt.fall$LCI),
+                         survey   = factor(c(depth.yt.winter$survey,sst.yt.winter$survey,int.yt.winter$survey,
+                                      depth.yt.spring$survey,sst.yt.spring$survey,int.yt.spring$survey,
+                                      depth.yt.fall$survey,sst.yt.fall$survey,int.yt.fall$survey),levels = c("Winter","Spring","Fall")),
+                         fe    = c(depth.yt.winter$fe,sst.yt.winter$fe,int.yt.winter$fe,
+                                      depth.yt.spring$fe,sst.yt.spring$fe,int.yt.spring$fe,
+                                      depth.yt.fall$fe,sst.yt.fall$fe,int.yt.fall$fe))
+
+
+
+plt.yt.cont.fe <- ggplot(yt.fe.res %>% filter(fe != "Sed")) + geom_line(aes(x = as.numeric(covar), y = response)) + 
+                     geom_ribbon(aes(x = as.numeric(covar),ymax = UCI,ymin = LCI),fill = 'blue',alpha=0.5)+
+                     facet_wrap(~fe + survey,scales='free',ncol = 3,strip.position = 'top') + 
+                     scale_x_continuous(breaks=breaks_fun) + 
+                     xlab("") + ylab("Probability") + ylim(c(0,0.55))
+
+plt.yt.fact.fe <- ggplot(yt.fe.res %>% filter(fe == "Sed")) + geom_point(aes(x = covar, y = response)) + 
+                     geom_errorbar(aes(x = covar,ymax = UCI,ymin = LCI),width=0)+
+                     facet_wrap(~fe + survey,scales='free',ncol = 3,strip.position = 'top') + 
+                     xlab("") + ylab("Probability") + ylim(c(0,0.55))
+
+plt.yt.fe <- plot_grid(plt.yt.cont.fe,plt.yt.fact.fe,align = 'v',nrow=2,rel_heights = c(2,1))
+
+
+save_plot(paste0(direct.proj,"Results/Figures/yt_fixed_effects.tiff"),plt.yt.fe,base_width =12,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/yt_fixed_effects.png"),plt.yt.fe,base_width =12,base_height =8,units='in')
+yt.fe <- paste0(direct.proj,"Results/Figures/yt_fixed_effects.png")
+
+
+#####
+# Figure Center of gravity of the species distributions has shifted
+#####
+# So here we need the predicted field for each model. I think we want to show how COG has moved for cod and yellowtail
+# and have a panel for each survey, might end up being better as 2 figures, not sure yet.  But we'll want 6 cogs
+# I also want to clean up the names in pred.dat (could come in handy throughout rather that using the labeller everywhere..
+
+names.survs <- names(pred.dat)
+pred.res <- NULL
+prob.select <- 0.75
+for(i in 1:length(names.survs))
+{
+  res <- pred.dat[[names.survs[i]]]
+  n.eras <- length(unique(res$years_5))
+  eras <- factor.2.number(unique(res$years_5))
+  # So the key is the last thing is the dataframe we want...
+  st_geometry(res) <- st_geometry(rep(mesh.grid,n.eras))
+  
+  for(n in min(eras):max(eras))
+  {
+    yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year)),3,4),"-",
+                substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(max = max(year)),3,4))
+    if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+    res$yrs[res$years_5==n] <- yrs
+  }
+  # So calculating area is smart using that set units, though they are all idenitcal...
+  res$area <- res %>% st_area() %>% set_units("km^2")
+  res <- res %>% filter(pred >= prob.select) # THIS IS SUPER IMPORTANT!!  WHAT IS THE probability we are looking at for this.
+
+  cog_n_area <- as.data.table(res)[,cog.calc(X,Y,pred), by = yrs]
+  cog_n_area <- st_as_sf(cog_n_area,coords = c('x','y'), crs= st_crs(mesh.grid), remove=F)
+  area <- res %>% group_by(yrs) %>% dplyr::summarise(area = sum(area))
+  st_geometry(area) <- NULL
+  cog_n_area$area <- area$area
+  # This object has what we need for COG and area calcs.  
+  cog_n_area$mod <- names.survs[i]
+  cog_n_area$species <- res$species[1]
+  cog_n_area$survey <- res$survey[1]
+  pred.res[[names.survs[i]]] <- cog_n_area
+}
+
+cog.n.area <- do.call('rbind',pred.res)
+# Make names nice...
+cog.n.area$species[cog.n.area$species == "yt_PA"] <- "Yellowtail"
+cog.n.area$species[cog.n.area$species == "cod_PA"] <- "Cod"
+cog.n.area$survey[cog.n.area$survey == "nmfs-spring"] <- "Spring"
+cog.n.area$survey[cog.n.area$survey == "nmfs-fall"] <- "Fall"
+cog.n.area$survey[cog.n.area$survey == "RV"] <- "Winter"
+cog.n.area$survey <- factor(cog.n.area$survey, levels = c("Winter","Spring","Fall"))
+cog.n.area$eras <- as.numeric(factor(cog.n.area$yrs, labels =1:length(unique(cog.n.area$yrs))))
+
+
+plt.cog <-  bp.zoom + geom_label(data = cog.n.area,aes(x=x, y = y,label=substr(yrs,3,8)),nudge_x = -7500,nudge_y=3500,size=2) +
+                  facet_wrap(~species + survey) + 
+                  geom_errorbar(data = cog.n.area,aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0,size=1)  +
+                  geom_errorbar(data = cog.n.area,aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0,size=1)  +
+                  xlab("") + ylab("") + theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
+
+
+save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.tiff"),plt.cog,base_width =12,base_height =12,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.png"),plt.cog,base_width =12,base_height =12,units='in')
+cog.plt <- paste0(direct.proj,"Results/Figures/center_of_gravity.png")
+
+### Now how has the area changed over time...
+
+plt.area <- ggplot(cog.n.area) + geom_line(aes(x = eras, y = as.numeric(area), group = survey,color= survey),lwd=1.5) +  
+                                 facet_wrap(~ species , scales = 'free_x') + ylab("Area (km²)") + # Get the squared with Alt + 0178.. bam
+                                 scale_y_continuous(breaks = seq(0,40000,2500)) + 
+                                 scale_x_continuous(breaks = unique(cog.n.area$eras),labels = unique(cog.n.area$yrs)) +
+                                 scale_color_manual(values = c("black", "blue","darkgreen")) 
+
+save_plot(paste0(direct.proj,"Results/Figures/Area_ts_high.tiff"),plt.area,base_width =12,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/Area_ts_high.png"),plt.area,base_width =12,base_height =8,units='in')
+area.plt <- paste0(direct.proj,"Results/Figures/Area_ts_high.png")
+
+#####
+# Figures for 5 fold cross validation and Predition
+#####
+# If we had 0 predictive power our RMSE would be around this, 
+# The runif is a field of random numbers between 0 and 1, while the rbinom is 50 0s and 1s with a 50-50 probabilty 
+# This probability  doesn't seem to matter for RMSE calcs the runif really generates the randomness of no predictability.
+null.rmse <- NA
+set.seed(123)
+for(i in 1:10000) null.rmse[i] <- RMSE(runif(50,0,1),rbinom(50,1,0.5)) # using 50 as this is roughly number of stations, but # doesn't actually matter.
+mn.crap.rmse <- mean(null.rmse)
+
+fold.res$model.id <- factor(fold.res$model.id, levels = c("Intercept","Depth","SST","Depth + SST"))
+mn.folds <- ggplot(fold.res) + geom_point(aes(y = mn, x= model.id,colour = type),position = position_dodge(width=0.3)) + ylab("Mean Error") + xlab("")+
+                               facet_wrap(~species,scales = 'free_x')+ scale_color_manual(values = c("blue","black")) +
+                               theme(legend.title = element_blank())
+
+rmse.folds <- ggplot(fold.res) + geom_point(aes(y = rmse, x= model.id,colour = type),position = position_dodge(width=0.3)) + ylab("RMSE") + xlab("")+
+                                 facet_wrap(~species,scales = 'free_x')  + scale_color_manual(values = c("blue","black")) +
+                                 geom_hline(yintercept = mn.crap.rmse,linetype = 2,color = 'red') + theme(legend.title = element_blank()) 
+                                
+plt.folds <- plot_grid(mn.folds,rmse.folds,nrow=2)
+save_plot(paste0(direct.proj,"Results/Figures/cross_fold_validation.tiff"),plt.folds,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/cross_fold_validation.png"),plt.folds,base_width =8,base_height =8,units='in')
+folds.plt <- paste0(direct.proj,"Results/Figures/cross_fold_validation.png")
+
+
+
+##### 
+# Figures for case study
+#####
 
 # Then we do a case study showing how the encounter probabilities overlap with each of the closures (CAI, CAII, Cod, Yellowtail)
 # for relevant species.  "Time series" showing the encounter probability inside closures, percent of the highest quartile probability area inside the closures should do the trick I think?
 
-hi.yt.spring <- pred.fun(survey = 'nmfs-spring',species = 'yt')
+hi.yt.spring <- pred.fun(pred.dat = pred.dat, survey = 'nmfs-spring',species = 'yt')
+# Get a nice continuous dummy variable...
+hi.yt.spring$bank$eras <- as.numeric(factor(hi.yt.spring$bank$yrs, labels =1:length(unique(hi.yt.spring$bank$yrs))))
+hi.yt.spring$scal$eras <- as.numeric(factor(hi.yt.spring$scal$yrs, labels =1:length(unique(hi.yt.spring$scal$yrs))))
+hi.yt.spring$CA1$eras  <- as.numeric(factor(hi.yt.spring$CA1$yrs, labels =1:length(unique(hi.yt.spring$CA1$yrs))))
+hi.yt.spring$CA2$eras  <- as.numeric(factor(hi.yt.spring$CA2$yrs, labels =1:length(unique(hi.yt.spring$CA2$yrs))))
+hi.yt.spring$CA1$loc <- "CA1"
+hi.yt.spring$CA2$loc <- "CA2"
+hi.yt.spring$CA1.2 <- bind_rows(hi.yt.spring$CA1,hi.yt.spring$CA2)
+hi.yt.spring$closure$species <- "Yellowtail"
 
+# Now the cod data...
+hi.cod.winter <- pred.fun(pred.dat = pred.dat, survey = 'RV',species = 'cod')
+# Get a nice dummy variable
+hi.cod.winter$bank$eras <- as.numeric(factor(hi.cod.winter$bank$yrs, labels =1:length(unique(hi.cod.winter$bank$yrs))))
+hi.cod.winter$scal$eras <- as.numeric(factor(hi.cod.winter$scal$yrs, labels =1:length(unique(hi.cod.winter$scal$yrs))))
+hi.cod.winter$CA1$eras  <- as.numeric(factor(hi.cod.winter$CA1$yrs, labels =1:length(unique(hi.cod.winter$CA1$yrs))))
+hi.cod.winter$CA2$eras  <- as.numeric(factor(hi.cod.winter$CA2$yrs, labels =1:length(unique(hi.cod.winter$CA2$yrs))))
+hi.cod.winter$CA1$loc <- "CA1"
+hi.cod.winter$CA2$loc <- "CA2"
+hi.cod.winter$CA1.2 <- bind_rows(hi.cod.winter$CA1,hi.cod.winter$CA2)
+hi.cod.winter$closure$species <- "Cod"
+# combo data where helpful
+hi.closures <- bind_rows(hi.cod.winter$closure,hi.yt.spring$closure)
+
+
+################ JUST NEED TO TIDY UP YT and COD BANK FIGURES AND I THINK I'M DONE WITH FIGURES FOR THE MOMENT ##################
 # So how about a panel showing the Area of 'high' encounter probability on the bank and inside the Canadian Scallop fishery domain.
-plt.hi.yt.spring.bank <- ggplot(hi.yt.spring$bank) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
-                                                     xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
-plt.hi.yt.spring.scal <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
-                                                     xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
-plt.hi.yt.spring.scal.prop.GB <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(prop.of.GB),x = yrs)) + 
-                                                             xlab("Era") + ylab("Porportion")
-plt.hi.yt.spring.scal.prop.can <- ggplot(hi.yt.spring$scal) + geom_point(aes(y = as.numeric(prop.scal.hi),x = yrs)) + 
-                                                              xlab("Era") + ylab("Porportion")
+plt.hi.yt.spring.bank <- ggplot(hi.yt.spring$bank) + 
+                                geom_line(aes(y = as.numeric(tot.area),x = eras)) + 
+                                xlab("Era") + ylab(expression(paste("Area (",km^2,")")))+
+                                scale_x_continuous(breaks = unique(hi.yt.spring$bank$eras),labels = unique(hi.yt.spring$bank$yrs)) 
+
+plt.hi.yt.spring.scal <- ggplot(hi.yt.spring$scal) + 
+                                geom_line(aes(y = as.numeric(tot.area),x = eras)) + 
+                                xlab("Era") + ylab(expression(paste("Area (",km^2,")"))) +
+                                scale_x_continuous(breaks = unique(hi.yt.spring$scal$eras),labels = unique(hi.yt.spring$scal$yrs)) 
+
+plt.hi.yt.spring.scal.prop.GB <- ggplot(hi.yt.spring$scal) + 
+                                        geom_line(aes(y = as.numeric(prop.of.GB),x = eras)) + 
+                                        xlab("Era") + ylab("Porportion") +
+                                        scale_x_continuous(breaks = unique(hi.yt.spring$scal$eras),labels = unique(hi.yt.spring$scal$yrs)) 
+
+plt.hi.yt.spring.scal.prop.can <- ggplot(hi.yt.spring$scal) + 
+                                         geom_line(aes(y = as.numeric(prop.scal.hi),x = eras)) + 
+                                         xlab("Era") + ylab("Porportion") +
+                                         scale_x_continuous(breaks = unique(hi.yt.spring$scal$eras),labels = unique(hi.yt.spring$scal$yrs)) 
 
 p.yt.spring.bank <- plot_grid(plt.hi.yt.spring.bank,
                          plt.hi.yt.spring.scal,
                          plt.hi.yt.spring.scal.prop.GB,
                          plt.hi.yt.spring.scal.prop.can)
 
-# Now we can do something similar with the closures...
-plt.hi.yt.closure <- ggplot(hi.yt.spring$closure) + geom_point(aes(y = as.numeric(tot.area),x = year)) + 
-                                                    xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) + ylim(c(0,300))
-plt.prop.of.hi.scal.area <- ggplot(hi.yt.spring$closure) + geom_point(aes(y = as.numeric(prop.hi.of.scal.area),x = year)) + 
-                                                           xlab("Year") + ylab("Proportion") 
-p.yt.closure <- plot_grid(plt.hi.yt.closure,plt.prop.of.hi.scal.area)
-
-# For CA1 and CA2 
-plt.hi.CA1.CA2 <- ggplot(hi.yt.spring$CA1) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
-                                             geom_point(data = hi.yt.spring$CA2,aes(y = as.numeric(tot.area),x = yrs),fill='blue',shape=22) + 
-                                             xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) 
-
-# Now the exact same figures for cod during spawning...
-hi.cod.winter <- pred.fun(survey = 'nmfs-fall',species = 'cod')
-
+# Now the cod data
 # So how about a panel showing the Area of 'high' encounter probability on the bank and inside the Canadian Scallop fishery domain.
-plt.hi.cod.winter.bank <- ggplot(hi.cod.winter$bank) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + +
-                                                       xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
-plt.hi.cod.winter.scal <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
-                                                       xlab("Era") + ylab(expression(paste("Area (",km^2,")")))
-plt.hi.cod.winter.scal.prop.GB <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(prop.of.GB),x = yrs)) + 
-                                                               xlab("Era") + ylab("Porportion")
-plt.hi.cod.winter.scal.prop.can <- ggplot(hi.cod.winter$scal) + geom_point(aes(y = as.numeric(prop.scal.hi),x = yrs)) + 
-                                                                xlab("Era") + ylab("Porportion")
+plt.hi.cod.winter.bank <- ggplot(hi.cod.winter$bank) + 
+                                 geom_line(aes(y = as.numeric(tot.area),x = eras)) + 
+                                 xlab("Era") + ylab(expression(paste("Area (",km^2,")")))+
+                                 scale_x_continuous(breaks = unique(hi.cod.winter$bank$eras),labels = unique(hi.cod.winter$bank$yrs)) 
+plt.hi.cod.winter.scal <- ggplot(hi.cod.winter$scal) + 
+                                 geom_line(aes(y = as.numeric(tot.area),x = eras)) + 
+                                 xlab("Era") + ylab(expression(paste("Area (",km^2,")")))+
+                                 scale_x_continuous(breaks = unique(hi.cod.winter$scal$eras),labels = unique(hi.cod.winter$scal$yrs)) 
+
+plt.hi.cod.winter.scal.prop.GB <- ggplot(hi.cod.winter$scal) + 
+                                         geom_line(aes(y = as.numeric(prop.of.GB),x = eras)) + 
+                                         xlab("Era") + ylab("Porportion")+
+                                         scale_x_continuous(breaks = unique(hi.cod.winter$scal$eras),labels = unique(hi.cod.winter$scal$yrs)) 
+plt.hi.cod.winter.scal.prop.can <- ggplot(hi.cod.winter$scal) + 
+                                          geom_line(aes(y = as.numeric(prop.scal.hi),x = eras)) + 
+                                          xlab("Era") + ylab("Porportion")+
+                                          scale_x_continuous(breaks = unique(hi.cod.winter$scal$eras),labels = unique(hi.cod.winter$scal$yrs)) 
 
 p.cod.winter.bank <- plot_grid(plt.hi.cod.winter.bank,
                          plt.hi.cod.winter.scal,
                          plt.hi.cod.winter.scal.prop.GB,
                          plt.hi.cod.winter.scal.prop.can)
 
-# Now we can do something similar with the closures...
-plt.hi.cod.closure <- ggplot(hi.cod.winter$closure) + geom_point(aes(y = as.numeric(tot.area),x = year)) + xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) + ylim(c(0,300))
-plt.prop.of.hi.scal.area <- ggplot(hi.cod.winter$closure) + geom_point(aes(y = as.numeric(prop.hi.of.scal.area),x = year)) + xlab("Year") + ylab("Proportion") 
-p.cod.closure <- plot_grid(plt.hi.cod.closure,plt.prop.of.hi.scal.area)
+
+
+# # Now we can make a nice plot of the Scallop closures
+plt.hi.area.closure <- ggplot(hi.closures) +  geom_line(aes(y = as.numeric(tot.area),x = year,color = species,linetype=species)) + 
+                                              xlab("Year") + ylab(expression(paste("Total High EP area (",km^2,")"))) + ylim(c(0,300)) +
+                                              theme(legend.title = element_blank()) + scale_color_manual(values = c("blue","black"))
+plt.prop.of.hi.scal.area <- ggplot(hi.closures) + geom_line(aes(y = as.numeric(prop.hi.of.scal.area),x = year,color = species,linetype=species)) + 
+                                                  xlab("Year") + ylab("Proportion of Canadian High EP area")  + ylim(c(0,0.2))+
+                                                  theme(legend.title = element_blank()) + scale_color_manual(values = c("blue","black"))
+
+# So a nice plot of the Candian closures and how unimportant they are!
+plt.scal.closures <- plot_grid(plt.hi.area.closure,plt.prop.of.hi.scal.area)
+save_plot(paste0(direct.proj,"Results/Figures/scal_closures.tiff"),plt.scal.closures,base_width =8,base_height =4,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/scal_closures.png"),plt.scal.closures,base_width =8,base_height =4,units='in')
+scal.closures.plt <- paste0(direct.proj,"Results/Figures/scal_closures.png")
 
 # For CA1 and CA2 
-plt.hi.CA1.CA2 <- ggplot(hi.cod.winter$CA1) + geom_point(aes(y = as.numeric(tot.area),x = yrs)) + 
-                                             geom_point(data = hi.cod.winter$CA2,aes(y = as.numeric(tot.area),x = yrs),fill='blue',shape=22) + 
-                                             xlab("Year") + ylab(expression(paste("Area (",km^2,")"))) 
+# First Yelllowtail
+plt.hi.yt.CA1.CA2 <- ggplot(hi.yt.spring$CA1.2) + 
+                         geom_line(aes(y = as.numeric(tot.area),x = eras,color = loc,linetype=loc)) + 
+                         xlab("Year") + ylab("Area (km²)")+  ylim(c(0,6000)) + 
+                         scale_x_continuous(breaks = unique(hi.yt.spring$CA1$eras),labels = unique(hi.yt.spring$CA1$yrs))+ 
+                         scale_color_manual(values = c("blue","black"))  + ggtitle("Yellowtail") + 
+                         theme(legend.title = element_blank(),plot.title = element_text(hjust = 0.5))
+# Now cod
+plt.hi.cod.CA1.CA2 <- ggplot(hi.cod.winter$CA1.2) + 
+                         geom_line(aes(y = as.numeric(tot.area),x = eras,color = loc,linetype=loc)) + 
+                         xlab("Year") + ylab("Area (km²)") + ylim(c(0,6000)) + 
+                         scale_x_continuous(breaks = unique(hi.cod.winter$CA1.2$eras),labels = unique(hi.cod.winter$CA1.2$yrs))+ 
+                         scale_color_manual(values = c("blue","black"))  + ggtitle("Cod") + 
+                         theme(legend.title = element_blank(),plot.title = element_text(hjust = 0.5))
+# So a nice CA1 and CA2 plot of cod and yellowtail
+plt.CA1.CA2 <- plot_grid(plt.hi.cod.CA1.CA2,plt.hi.yt.CA1.CA2,nrow=2)
+save_plot(paste0(direct.proj,"Results/Figures/CA1_CA2_area_hi.tiff"),plt.CA1.CA2,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/CA1_CA2_area_hi.png"),plt.CA1.CA2,base_width =8,base_height =8,units='in')
+CA1.CA2.plt <- paste0(direct.proj,"Results/Figures/CA1_CA2_area_hi.png")
 
 
+# Now here's how well the prediction work for spawning aggregations between 2017-2019...
+all.resids$type <- "residual"
+all.resids$type[all.resids$year %in% 2017:2019] <- 'prediction'
+all.resids$species[all.resids$species == 'yt_PA'] <- "Yellowtail"
+all.resids$species[all.resids$species == 'cod_PA'] <- "Cod"
+pred.17.19 <- all.resids %>%  group_by(species,type,year,field) %>% summarise(mn = mean(resid), rmse = RMSE(fitted,response))
+pred.17.19$field[pred.17.19$field ==3] <- "3 year field"
+pred.17.19$field[pred.17.19$field ==5] <- "5 year field"
+plt.pred.17.19 <- ggplot(pred.17.19) + geom_line(aes(x=year,y = rmse,color = type),size=1.5) + xlab("") + ylab("RMSE") + 
+                                       facet_wrap(~ species + field) + geom_hline(yintercept = mn.crap.rmse,linetype = 2,color = 'red') +
+                                       theme(legend.title = element_blank()) + scale_color_manual(values = c("blue","black"))
+
+save_plot(paste0(direct.proj,"Results/Figures/prediction_2017_2019.tiff"),plt.pred.17.19,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/prediction_2017_2019.png"),plt.pred.17.19,base_width =8,base_height =8,units='in')
+pred.17.19.plt <- paste0(direct.proj,"Results/Figures/prediction_2017_2019.png")
+
+
+
+################################
+###  Getting data for use in the paper  ###
+################################
+n.stations <- dat.final %>% group_by(survey) %>% summarise(ns = n())
+n.nmfs.spring <- n.stations$ns[n.stations$survey == 'nmfs-spring']
+n.rv <- n.stations$ns[n.stations$survey == 'RV']
+n.nmfs.fall <- n.stations$ns[n.stations$survey == 'nmfs-fall']
+
+# Sediment type overall...
+sed.bd <- table(dat.final$SEDNUM)
+per.3.4.sed <- signif(100*sum(sed.bd[2:3])/length(dat.final$SEDNUM), digits = 2)
+# Other sediment types are 5.7% of tows, along with a small number of NA tows (which table doesn't show).
+per.other.sed <- signif(100*sum(sed.bd[-c(2:3)])/length(dat.final$SEDNUM), digits = 2)
 ```
 
 \twocolumn
@@ -289,11 +743,11 @@ The collection of data in fisheries science, both biological and environmental, 
 
 Georges Bank has been home to some of the most productive fisheries in the world for centuries and is home to a wealth of natural resources. For this reason this area has been host to intensive scientific research programs for decades (CITE SOME STUFF).  This research has resulted in a wealth of scientific knowledge about the geology, environment, and ecology of this area (CITE SOME STUFF). Historically numerous countries had large fisheries in the region but with the expansion of territorial seas to 200 miles offshore in the late 1970's, resource exploitation (e.g. fisheries) on Georges Bank fell under the jurisdiction of Canada and the United States (CITE NAFO something). The final demarcation of the Canadian and United States territorial waters on Georges Bank were implemented with an International Court of Justice decision in 1984 (CITE). Within three years of this decision both countries had developed their own independent groundfish surveys which each covered the entirety of the bank at different times of the year.
 
-Historically, Georges bank was home to large groundfish fisheries including Atlantic cod (*Gadus morhua*), Altantic haddock (*Melanogrammus aeglefinus*), Yellowtail flounder (*Limanda ferruginea*) and numerous other species (CITE). As observed throughout the northwest Atlantic, the biomass of Atlantic cod on Georges Bank declined significantly in early 1990's and there have been little evidence for recovery of this stock since this collapse (CITE TRAC). Yellowtail flounder on Geroges Bank had been at low abundnace on the bank since the 1970's, but evidence for a rapid recovery of this species was observed in the early 2000's and resulted in directed fisheries for this species for several years, unfortunately this recovery was short lived and the abundance of this species has been near historical lows for the last decade (CITE).  While the status of these two groundfish species remains bleak, other groundfish stocks (e.g. Atlantic haddock) have experienced large increases in biomass over the last decande, and currently the most lucrative fishery on Georges Bank has been an invertebrate sea scallop fishery which has experienced unprecidented producitivity over the last two decades (CITE SABHU and DVORA).
+Historically, Georges bank was home to large groundfish fisheries including Atlantic cod (*Gadus morhua*), Altantic haddock (*Melanogrammus aeglefinus*), Yellowtail flounder (*Limanda ferruginea*) and numerous other species (CITE). As observed throughout the northwest Atlantic, the biomass of Atlantic cod on Georges Bank declined significantly in early 1990's and there have been little evidence for recovery of this stock since this collapse (CITE TRAC). Yellowtail flounder on Geroges Bank had been at low abundnace on the bank since the 1970's, but evidence for a rapid recovery of this species was observed in the early 2000's and resulted in directed fisheries for this species for several years, unfortunately this recovery was short lived and the abundance of this species has been near historical lows for the last decade (CITE).  While the status of these two groundfish species remains bleak, other groundfish stocks (e.g. Atlantic haddock) have experienced large increases in biomass over the last decade, and currently the most lucrative fishery on Georges Bank has been an invertebrate sea scallop fishery which has experienced unprecedented productivity over the last two decades (CITE SABHU and DVORA).
 
 Fisheries management bodies in both Canada and the United States have implemented measures to protect cod and yellowtail on Georges Bank.  While these measures vary between the countries, both countries have collaborated to develop a shared bycatch quota for these two species; this quota has declined substantially for both species over the last decade (CITE). There has been no directed fishery for cod on Georges bank for either country since XXXX. In addition to these regulations which attempt to directly limit the removals of these two species, both countries have implemented closures. In the United States two large closed area were implemented (Closed Area I and II) in the 1990's, these closures were designed aid in the recover of groundfish and invertebrate stocks on Georges Bank (CHECK RATIONALE FOR CAI and CAII, Murawoski paper likely has good review of it).  In Canada the groundfish fishery is not permitted to fish on Georges Bank during cod spawning, generally this closure runs from early February to the end of May since XXXX (CHECK!).  The Canadian Offshore scallop fishery also faces rescritions on fishing during the peak spawning periods for both cod and yellowtail although the effect of these closures appears to be limitied (CITE OUR FIRST PAPER).
 
-Here we use a recently developed statistical framework (CITE R-INLA) to develop spatio-temporal species distribution models for two depleted groundfish stocks on Georges Bank (Atlantic cod and Yellowtail flounder).  Our objectives were; 1) Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species, 2) determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed, 3) determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall, 4) determine how well these models can predict the distribution of these species 1, 2, and 3 years into the future.
+Here we use a recently developed statistical framework (CITE R-INLA) to develop spatio-temporal species distribution models for two depleted groundfish stocks on Georges Bank (Atlantic cod and Yellowtail flounder).  Our objectives were; 1) Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species, 2) determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed, 3) determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall, 4) using these two species as a case study investigate how well existing closures on Georges Bank align with these species during their spawning and 5) determine how well these models can predict the spawning distribution of these species 1, 2, and 3 years into the future.
 
 
 <!-- From a scientific perspective, disentangling how environmental, ecological, and anthropogenic factors impact the population dynamics of marine fishes is pivotal to development of sustainability strategies.  -->
@@ -321,7 +775,7 @@ A suite of 21 environmental variables with spatial information were obtained for
 
 ### Statistical Analysis
 
-A Bayesian hierarchical methodology was implemented using the Integrated Nested Laplace Approximation approach available within the R Statistical Programming software R-INLA (CITE R and INLA).  In recent years R-INLA has seen a rapid increase in use to model species distributions in both within the terrestrial and marine realms (CITE SOME PAPERS). This methodology solves stochastic partial differential equations on a spatial triangulated mesh; this mesh is typically based on the data available (CITE RUE). To avoid edge effects the mesh is extended beyond the boundaries of the data, the mesh used in this study included `r mesh.gf$n` vertices (Figure \@ref(fig:mesh)).
+A Bayesian hierarchical methodology was implemented using the Integrated Nested Laplace Approximation approach available within the R Statistical Programming software R-INLA (CITE R and INLA).  In recent years R-INLA has seen a rapid increase in use to model species distributions in both within the terrestrial and marine realms (CITE SOME PAPERS). This methodology solves stochastic partial differential equations on a spatial triangulated mesh; this mesh is typically based on the data available (CITE RUE). To avoid edge effects the mesh is extended beyond the boundaries of the data, the mesh used in this study included `r mesh.gf$n` vertices (Figure \@ref(fig:Mesh)).
 
 For the INLA models data up to `r max(dat.final$year)` were used, while survey data from 2017-2019 were excluded from the main analysis and used only as testing data.  For all analyses the response variable was presence absence of the species of interest ($EP_{it}$) and a *Bernoulli* GLM was utilized within R-INLA.
 
@@ -336,59 +790,50 @@ $$ logit(pi_{it}) = \alpha + f(Cov_{it}) + u_{it} $$
 $$ u_{it} \sim GMRF(0,\Sigma) $$
 
 
-Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually, all continuous covariates were modelled using the INLA random walk $'rw2'$ smoother which allows for non-linear relationships between the response and each variable. The continuous covariates were centred at their mean value and scaled by their standard deviation, covariates which were highly skewed (e.g. depth) were log transformed before being standardized. 
+Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually, all continuous covariates were modelled using the INLA random walk $'rw2'$ smoother which allows for non-linear relationships between the response and each variable (Cite ZUUR Vol 1). The continuous covariates were centred at their mean value and scaled by their standard deviation, covariates which were highly skewed (e.g. depth) were log transformed before being standardized. Due to low sample size of several of the levels the Sediment number (Sed) were amalgamated into one factor level which was represented by the 'intercept' term  in models which included the Sediment number. This amalgamated level represented approximately `r 100-per.3.4.sed`% of survey tows across the three surveys (approximately `r per.3.4.sed`% of the survey tows were on Sediment type 3 or 4).
 
-Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC and DIC.  In all cases the static spatial field was an inferior model when compared to models with multiple random fields and the results discussed here use the 10/5/3 year random fields.
+Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC and DIC; the results for both metrics were similar and only the WAIC results are discussed further.  In all cases the static spatial field was an inferior model when compared to models with multiple random fields and the results discussed here use the 10/5/3 year random fields.
 
-Initial model selection for the different covariate models was undertaken using a static random field (due to computational constraints) by adding individual covariates. For this first analysis covariates were retained if low WAIC and DIC scores were observed across multiple models. For cod this analysis identified depth (DEP) and the average sea surface temperature between 1997 and 2008 (SST) as having low WAIC and DIC scores in 2 of the 3 models.  For yellowtail, depth (DEP) was the primary covariate observed, in addition sediment grain size (SED), and the average chlorophyll concentration between 1997 and 2008 (CHL) were retained due to their low scores in one survey. These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) for both species and again compared using WAIC and DIC; for yellowtail a model with 3 additive terms was also compared (SST + DEP + SED).  For cod the the final model selection favoured an additive DEP and SST model, while for yellowtail the inclusion of an additional SED term was favoured. For this step, model selection was performed using WAIC and DIC and variables were retained in the model if they were within a WAIC/DIC of 2 when compared to the best performing model, more parsimonious models were favoured when the difference in WAIC/DIC was less than 2 between two models.
+Initial model selection for the different covariate models was undertaken using a static random field (due to computational constraints) by adding individual covariates. For this first analysis covariates were retained if low WAIC scores were observed across multiple models. For cod this analysis identified depth (DEP) and the average sea surface temperature between 1997 and 2008 (SST) as having low WAIC scores in 2 of the 3 surveys.  For yellowtail, depth (DEP) was the primary covariate observed, in addition sediment grain size (SED), and the average chlorophyll concentration between 1997 and 2008 (CHL) were retained due to their low scores in one survey. These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) for both species and again compared using WAIC. For cod a three term model including additive terms for SST, DEP, and CHL was the most complex model tested, while for yellowtail the most complex model included SST, DEP, and SED.  For this step additional covariates were retained if the WAIC for that model resulted in an improvement of the WAIC of more than 2 when compared to the lowest WAIC more parsimonious model.
 
-### Model Validation and Prediction
+### Model Validation 
 
-Five fold cross validation was used to test the predictive performance of the models. The data were randomly divided into 5 subsets and trained using 4 of the subsets, the 5the dataset was treated as a testing dataset to determine how well the model was able to predict out of sample data. Model performance was measured by comparing the the model residuals from the training data to the prediction error from the testing data, the metrics used for this comparison were Root Mean Squared Error (RMSE), Mean Average Error (MAE), and the standard deviation (SD).  For computational reasons the models compared using 5 fold cross validation were intercept only, DEP, DEP + SST, the 5 year random field was used for all model validation for both species.
+Five fold cross validation was used to test the predictive performance of the models. The data were randomly divided into 5 subsets and trained using 4 of the subsets, the 5th dataset was treated as a testing dataset to determine how well the model was able to predict out of sample data. Model performance was measured by comparing the the model residuals from the training data to the prediction error from the testing data, the metrics used for this comparison were Root Mean Squared Error (RMSE), Mean Average Error (MAE), and the standard deviation (SD).  For computational reasons the models compared using 5 fold cross validation were intercept only, SST (cod), DEP (yellowtail), DEP + SST, the 5 year random field was used for all model validation for both species.
 
-In addition to the 5-fold cross validation the survey data from 2017-2019 was excluded from the models and was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years after the final year of survey data. The predictive error was estimated using RMSE, MAE, and SD and this was compared to the residual error from each model.
+### Case Study
+
+These model results were used in an analysis
+In addition to the 5-fold cross validation the survey data from 2017-2019 was excluded from the models and was used as a testing dataset to determine how well the models were able to predict future species distributions and to quantify how the predictions of species distributions differ 1, 2, and 3 years after the final year of survey data. Due to computational constraints this analysis compared the 3 and 5 year random field predictions using the SST + Dep model and used the DFO Winter survey for the cod and the NMFS Spring survey for yellowtail. The predictive error was estimated using RMSE, MAE, and SD and this was compared to the residual error from each model.
 
 # Results
 
 ### Model Selection
 
-
+Initial model selection resulted in a significant reduction in the number of covariates in the model.  For cod, the Winter (DFO) and Spring (NMFS) both identified SST as significant covariates, while the Spring survey also identified depth and stratification, the Fall (NMFS) survey did not indicate any covariates with an WAIC that were a significant improvement from the intercept only model, although again the inclusion of Depth did result in a slightly smaller WAIC (Figure \@ref(fig:diag.1.fe).  For yellowtail, inclusion of depth significantly improved the models in all 3 seasons (surveys), while Sediment grain size (Sed) and chlorophyll concentration in the Fall had a similar impact on the model WAIC as SST. As a result SST, Depth, Chl, and Sed were used to explore the development of more complex covariate models. For cod these more complex models resulted in an additive Dep + SST model being the preferred model in all 3 seasons (Figure \@ref(fig:diag.2.fe). For yellowtail the best models with 2 covariates included some combination of Dep, SST, and Sed, further model selection indicated that the best model for yellowtail in all 3 seasons was an additive model including Dep, SST, and Sed (Figure \@ref(fig:diag.2.fe and \@ref(fig:diag.3.fe)). The cod the 5 year random field had the lowest WAIC in all seasons, whlie for yellowtail the 3 year field was preferred for Winter and Spring, while the 5 year field was preferred for Fall (Figure \@ref(fig:diag.rf)).
 
 ### Environmental Variables
 
-For all three surveys and both species model selection inciated that DEP and average SST between 1997 and 2008 were the favoured covariates   (TABLE/FIG). The depth relationship for cod (FIG: show cod depth for each survey) indicates....  The seasonal variation in this relationship....   (Figure X). The SST (FIG: show SST for every survey)... The seasonal variation in this...
+The average SST between 1997 and 2008 had the largest effect on the EP (encounter probability) of cod, they were generally more likely to be found in colder regions of the bank with the EP declining rapidly in regions of the bank in which the SST was above approximate 10°C (Fig).  The depth relationship was also retained in the final cod model though the effect on EP was substantially smaller, during the Winter and Spring the EP peaked between approximately 60 and 90 meters and declined slowly in shallower and deeper waters (Fig).
 
-For yellowtail say the same stuff
+For yellowtail depth had the largest effect on EP, with Yellowtail being most likely to be observed between depths of 60 and 90 meters and the EP being higher during the Spring (Fig). The average SST between 1997 and 2008 was also inculded in the final model in all three seasons, with yellowtail EP generally declining slightly as SST increased.  The Sediment type also had a significant influence on the EP for yelowtail, with Sediment types 3 and 4 having higher EP's than other sediment types, this difference is most notable during the Winter, but model selection slightly favoured the Sediment model in the Spring and Winter as well although the effect size declined in these years (Fig). 
 
-### Random Fields
+Inter-annual and Seasonal Variability 
 
-For cod the preferred random field changes every 5 years (TABLE) and this was consistent for each of the 3 surveys.  
+For both species the distribution shifted towards the north and east throughout the study period (COG Fig). For cod the shift in distribution occurred relatively rapidly in the 1990s and the center of gravity has been relatively stable since this period (COG Fig).  This shift in distribution of cod has largely occurred due to the loss areas with high encounter probabilities on the U.S. side of the bank (Fig Supplement), the center of gravity of the population has been well within Canadian waters since this shift for all 3 surveys. In addition, the fall survey indicates that cod has tended to be distributed along the northern edge of Georges Bank and the distribution of cod during this time likely includes the northern slope of the bank where there is limited survey coverage. The area of high encounter probability has followed a similar temporal pattern as the distribution, with a rapid decline in the area of high encounter probability for cod occurring in the 1990s in the winter and spring (Area Fig). In the fall the decline in high encounter probability (HEP) was observed approximately a decade earlier than in the winter or spring, the area of HEP has been much smaller during the fall, given the location of the stock along the edge of the bank during this period it is likely that a substantial portion of the population is located along the slope where survey coverage is limited.
 
-For yellowtail the preferred model had a random field which changed every 3 years (TABLE) and this was consistent for each of the 3 surveys.
+The yellowtail shift in distribution has in large part been due to a loss of HEP along the southern flanks of Geroges Bank and the region of HEP has been consolidated in a central region of Georges Bank which straddles the ICJ line dividing Canada and the U.S (COG Fig + Supplement). This center of gravity of yellowtail has been very stable both seasonally and inter-annually since the 1990s despite large changes in the HEP area  during this time.  The trends in and size of the HEP area for the Spring and Fall surveys have been very similar since the 1980s with large increases in HEP area in the 1990s followed by variable yet increasing HEP area. The Winter survey indentifies an area of similar location and size, but the Winter HEP trend has been in decline since a period of increase in the 1990s.
 
-### Validation
+### Validation and Prediction
 
-The 5-fold cross validation indicated that the model was able to predict the distribution for all species and surveys without a significant loss of accuracy, the precision of the validation test set predictions was higher than the precision of the training data.  In addition the prediction from the models using only the random fields was similar to the predictions from the models in which all covariates were used.
+The 5-fold cross validation indicated that all of the models were able to predict the distribution for all species and surveys without a significant loss of accuracy, the mean error of the residuals for the validation training set predictions were similar to the error from the predicted test data, although the mean error of the test data were generally more variable (Fig).  The RMSE from the test and training data showed similar patterns for both species and most of the models, although notably the RMSE from the intercept only Yellowtail model was somewhat lower than either of the models with covariates indicating that the the inclusion of explicit covariates may result in a small loss of out of sample prediction for this species (Fig).
 
-### Prediction
 
-All of the models were able to predict the distribution of each species 1, 2, and 3 years into the future (RMSE and other stats).  The 2018 Yellowtail NMFS-spring data had the lowest prediction accuracy, this is likely related to the unusually sparse coverage of this survey in the region in which the probability of encountering yellowtail was elevated (DASHBOARD?).
+### Case Study
 
-Inter-annual Variability 
 
-For both species their distributions shifted towards the north and east throughout the study period (COG + FIG).  Much of this shift was driven by a decline in the probability of encounter in the western and southern portions of GB (FIG).  
 
-For cod the area in which the probability of encountering cod was high (> 75?) declined significantly throughout the study period with a rapid decline occurring in the early 1990s which has persisted thereafter (FIG or DASHBOARD).  The cod population now is predominately found in the northeast corner of the bank, this becomes more pronounced during the fall which the highest probability of encounter is found along the edge of the northern portion of the survey area.
+Both the 3 and 5 year random field models resulted in a loss of accuracy when predicting the spawning distributions of each species 1, 2, and 3 years into the future (RMSE and other stats), but the predictions generally remained within the range of RMSE values observed in the model residuls.  For both species the 2018 data had the lowest prediction accuracy (recall that the cod data used in this analysis were from the DFO Winter survey and the yellowtail data were from the NMFS Spring survey).
 
-For yellowtail the population also shifted from the south and west portion of the bank and the population appeared to straddle the ICJ line separating Can/US.  The size of the core area (PE >75%) has changed during the study period, with the largest areas of high probability of encounter observed in the early 2000s, the expansion of this core area occurred rapidly from a very small core area observed in the 1990s.
-
-### Seasonal Variability
-
-For cod the distribution of the species was similar for the DFO-winter (Feb-Mar) and NMFS-spring (April-May) surveys, while a clear shift in the distribution was observed for the NMFS-fall survey (Sept-Nov).  
-
-For yellowtail the distribution was observed to be similar for all three surveys with a clear core area consistently identified.  In the fall the probability of encounter is generally lower that observed in the winter and spring despite the spatial distribution remaining similar (FIG, simple fig showing mean + SE for each survey from best model).
-
-COMPARE THE DEPTH/SST relationships between surveys here, I believe they were very similar throughout but explore this here.
 
 # Discussion
 
@@ -469,6 +914,26 @@ knitr::include_graphics(sst_depth_spatial)
 ```{r Mesh, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Mesh used for INLA."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(mesh)
+```
+
+```{r diag.1.fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Initial model selection"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.single.fe)
+```
+
+```{r diag.2.fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Step 2 model selection"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.2.covars.fe)
+```
+
+```{r diag.3.fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Step 3 model selection"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.3.covars.fe)
+```
+
+```{r diag.rf, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Random field model selection.  For cod the model used is Dep + SST for all of the random fields.  For Yellowtail the 5 and 10 fields were compared using the Dep + SST model, while the 5 and 3 fields were compared using the full Dep + SST + Sed model"}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.rf)
 ```
 
 
