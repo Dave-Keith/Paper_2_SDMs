@@ -73,13 +73,14 @@ source(paste0(direct.proj,"scripts/predicted_prob_time_series_function.R"))
 load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
 load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/INLA_meshes.RData"))
-load(paste0(direct.proj,"data/Depth_and_sst_rasters.RData"))
+load(paste0(direct.proj,"data/Depth_SST_and_Sed_on_GB.RData"))
 load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
 load(paste0(direct.proj,"data/Prediction_mesh.RData"))
 load(paste0(direct.proj,"data/All_model_covariate_fits.RData"))
 load(paste0(direct.proj,"data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
 load(paste0(direct.proj,"data/INLA_2017_2019_prediction_error_summary.RData"))
-
+# The meta data 
+table_1 <- read_xlsx(paste0(direct.proj,"Data/enviro_data_table.xlsx"))
 # This contains all the WAIC and DIC model selection diagnostics + some plots of these, see Step 6b for what was done here.
 load(paste0(direct.proj,"data/model_diagnostics_for_papers.RData"))
 direct.proj <-  direct.tmp 
@@ -198,24 +199,37 @@ mesh.plt <- paste0(direct.proj,"Results/Figures/mesh.png")
 #####
 # Perhaps I need Sed num in here now...
 #Depth and SST Maps - Commented out as these should be basically static plots
-# First, I need a map showing the spatial distribution of the SST and Depth
-# Don't run this unless we have to as these are pretty big, just want to load the object from this which is already saved.
-# # And subset the sst and depth data to this.
-# sst.gb <- st_intersection(sst.sf,clp.pred)
-# depth.gb <- st_intersection(depth.sf,clp.pred)
+#First, I need a map showing the spatial distribution of the SST and Depth
+#Don't run this unless we have to as these are pretty big, just want to load the object from this which is already saved.
+# And subset the sst and depth data to this.
+# sst.gb <- st_intersection(sst.gb,clp.pred)
+# depth.gb <- st_intersection(depth.gb,clp.pred)
+# sed.gb <- st_intersection(sed.gb,clp.pred)
 # # # So for both species depth patterns over 150 meters are pretty flat, so I can just lump them altogether so we can see the key depth bits
-#  depth.gb$Band_1[depth.gb$Band_1 <= -150] <- -150
-#  sst.map <- bp.zoom + geom_sf(data=sst.gb,aes(color = Band_1,fill = Band_1)) + scale_color_viridis_c(option = "plasma",direction = 1,end = 0.75,name="SST (°C)") + scale_fill_viridis_c(option = "plasma",direction = 1,end = 0.75,name="SST (°C)")
-# #
-#  depth.map <- bp.zoom + geom_sf(data=depth.gb,aes(color = Band_1,fill = Band_1)) + scale_color_viridis_c(option = "viridis",direction = 1,end = 0.75,name="Depth (m)") + scale_fill_viridis_c(option = "viridis",direction = 1,end = 0.75,name="Depth (m)")
+#  depth.gb$layer[depth.gb$layer <= -150] <- -150
+# 
+# 
+# sed.map <- pecjector(area = list(x=c(405000,790000), y = c(4400000,4800000),crs = 32619), c_sys = 32619,
+#                       add_layer = list(land = 'grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F, legend =T,
+#                       add_custom = list(obj = sed.gb,
+#                                    scale = list(scale ='d',palette = viridis::cividis(3,begin=0.25,end=0.85,direction = -1),leg.name="")))
+# 
+# sst.map <- pecjector(area = list(x=c(405000,790000), y = c(4400000,4800000),crs = 32619), c_sys = 32619,
+#                       add_layer = list(land = 'grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F, legend =T,
+#                       add_custom = list(obj = sst.gb,
+#                                    scale = list(scale ='c',palette = pals::coolwarm(25),breaks = 9:15,leg.name="SST (°C)")))
+# depth.map <- pecjector(area = list(x=c(405000,790000), y = c(4400000,4800000),crs = 32619), c_sys = 32619,
+#                       add_layer = list(land = 'grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F, legend =T,
+#                       add_custom = list(obj = depth.gb,
+#                                    scale = list(scale ='c',palette = rev(pals::brewer.blues(25)),breaks = seq(0,-150,by=-25),leg.name="Depth (m)")))
 # # # Plotting this beast is really slow b/c the depth data are so fine scale
 # 
 # # Now combine these two figures and save it, because the save is so slow I've turned it off after making this figure the first time
 # # If you want to remake it uncomment the saves below
-# p.covars <- plot_grid(sst.map, depth.map,align = "h", nrow = 1)
-#save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.tiff"),p.covars,base_width =8,base_height =4,units='in')
-#save_plot(paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png"),p.covars,base_width =8,base_height =4,units='in')
-sst_depth_spatial.plt <- paste0(direct.proj,"Results/Figures/depth_and_sst_fields.png")
+# p.covars <- plot_grid(sst.map, depth.map,sed.map,align = "v", nrow = 3)
+# save_plot(paste0(direct.proj,"Results/Figures/depth_sst_sed_fields.tiff"),p.covars,base_width =8,base_height =12,units='in')
+# save_plot(paste0(direct.proj,"Results/Figures/depth_sst_sed_fields.png"),p.covars,base_width =8,base_height =12,units='in')
+sst_depth_spatial.plt <- paste0(direct.proj,"Results/Figures/depth_sst_sed_fields.png")
 
 #####
 # Figure Model Selection with 1 FE.
@@ -393,7 +407,7 @@ int.yt.winter$UCI <-  c(inv.logit(int.yt.winter$`0.975quant`[1]),inv.logit(int.y
 int.yt.winter$LCI <-  c(inv.logit(int.yt.winter$`0.025quant`[1]),inv.logit(int.yt.winter$mean[1] + int.yt.winter$`0.025quant`[2:3]))
 int.yt.winter$survey <- "Winter"
 int.yt.winter$fe <- "Sed"
-rownames(int.yt.winter) <- c("Intercept", "Sed-3","Sed-4")
+rownames(int.yt.winter) <- c("Intercept", "Gravel-Sand","Sand") # Sediment 3 is Gravel sand, and 4 is Sand from USGS metadata
 # spring survey
 int.yt.spring <- all.mod.fixed[["yt_PA nmfs-spring survey model.depth.sed.sst_st_3"]]
 depth.yt.spring <- all.mod.depth[["yt_PA nmfs-spring survey model.depth.sed.sst_st_3"]]
@@ -418,7 +432,7 @@ int.yt.spring$UCI <-  c(inv.logit(int.yt.spring$`0.975quant`[1]),inv.logit(int.y
 int.yt.spring$LCI <-  c(inv.logit(int.yt.spring$`0.025quant`[1]),inv.logit(int.yt.spring$mean[1] + int.yt.spring$`0.025quant`[2:3]))
 int.yt.spring$survey <- "Spring"
 int.yt.spring$fe <- "Sed"
-rownames(int.yt.spring) <- c("Intercept", "Sed-3","Sed-4")
+rownames(int.yt.spring) <-  c("Intercept", "Gravel-Sand","Sand") # Sediment 3 is Gravel sand, and 4 is Sand from USGS metadata
 # Fall survey
 int.yt.fall <- all.mod.fixed[["yt_PA nmfs-fall survey model.depth.sed.sst_st_3"]]
 depth.yt.fall <- all.mod.depth[["yt_PA nmfs-fall survey model.depth.sed.sst_st_3"]]
@@ -444,7 +458,7 @@ int.yt.fall$UCI <-  c(inv.logit(int.yt.fall$`0.975quant`[1]),inv.logit(int.yt.fa
 int.yt.fall$LCI <-  c(inv.logit(int.yt.fall$`0.025quant`[1]),inv.logit(int.yt.fall$mean[1] + int.yt.fall$`0.025quant`[2:3]))
 int.yt.fall$survey <- "Fall"
 int.yt.fall$fe <- "Sed"
-rownames(int.yt.fall) <- c("Intercept", "Sed-3","Sed-4")
+rownames(int.yt.fall) <-  c("Intercept", "Gravel-Sand","Sand") # Sediment 3 is Gravel sand, and 4 is Sand from USGS metadata
 
 # Stitch it all together into something very tidyverse.
 yt.fe.res <- data.frame(response = c(depth.yt.winter$response,sst.yt.winter$response,int.yt.winter$response,
@@ -465,8 +479,8 @@ yt.fe.res <- data.frame(response = c(depth.yt.winter$response,sst.yt.winter$resp
                          fe    = c(depth.yt.winter$fe,sst.yt.winter$fe,int.yt.winter$fe,
                                       depth.yt.spring$fe,sst.yt.spring$fe,int.yt.spring$fe,
                                       depth.yt.fall$fe,sst.yt.fall$fe,int.yt.fall$fe))
-
-
+# Generally in the 60-80 range
+#yt.fe.res %>% filter(response > 0.1)
 
 plt.yt.cont.fe <- ggplot(yt.fe.res %>% filter(fe != "Sed")) + geom_line(aes(x = as.numeric(covar), y = response)) + 
                      geom_ribbon(aes(x = as.numeric(covar),ymax = UCI,ymin = LCI),fill = 'blue',alpha=0.5)+
@@ -474,10 +488,11 @@ plt.yt.cont.fe <- ggplot(yt.fe.res %>% filter(fe != "Sed")) + geom_line(aes(x = 
                      scale_x_continuous(breaks=breaks_fun) + 
                      xlab("") + ylab("Probability") + ylim(c(0,0.55))
 
-plt.yt.fact.fe <- ggplot(yt.fe.res %>% filter(fe == "Sed")) + geom_point(aes(x = covar, y = response)) + 
-                     geom_errorbar(aes(x = covar,ymax = UCI,ymin = LCI),width=0)+
-                     facet_wrap(~fe + survey,scales='free',ncol = 3,strip.position = 'top') + 
-                     xlab("") + ylab("Probability") + ylim(c(0,0.55))
+plt.yt.fact.fe <- ggplot(yt.fe.res %>% filter(fe == "Sed")) + 
+                               geom_point(aes(x = factor(covar, levels = c("Intercept","Gravel-Sand","Sand")), y = response)) + 
+                               geom_errorbar(aes(x = factor(covar, levels = c("Intercept","Gravel-Sand","Sand")),ymax = UCI,ymin = LCI),width=0)+
+                               facet_wrap(~fe + survey,scales='free',ncol = 3,strip.position = 'top') + 
+                               xlab("") + ylab("Probability") + ylim(c(0,0.55))
 
 plt.yt.fe <- plot_grid(plt.yt.cont.fe,plt.yt.fact.fe,align = 'v',nrow=2,rel_heights = c(2,1))
 
@@ -604,8 +619,8 @@ hi.yt.spring$scal$eras <- factor.2.number(factor(hi.yt.spring$scal$yrs, labels =
 hi.yt.spring$scal$species <- "Yellowtail"
 hi.yt.spring$CA1$eras  <- factor.2.number(factor(hi.yt.spring$CA1$yrs, labels =1:length(unique(hi.yt.spring$CA1$yrs))))
 hi.yt.spring$CA2$eras  <- factor.2.number(factor(hi.yt.spring$CA2$yrs, labels =1:length(unique(hi.yt.spring$CA2$yrs))))
-hi.yt.spring$CA1$loc <- "CA1"
-hi.yt.spring$CA2$loc <- "CA2"
+hi.yt.spring$CA1$loc <- "CA I"
+hi.yt.spring$CA2$loc <- "CA II"
 hi.yt.spring$CA1.2 <- bind_rows(hi.yt.spring$CA1,hi.yt.spring$CA2)
 hi.yt.spring$CA1.2$species <- "Yellowtail"
 hi.yt.spring$closure$species <- "Yellowtail"
@@ -619,8 +634,8 @@ hi.cod.winter$scal$eras <- factor.2.number(factor(hi.cod.winter$scal$yrs, labels
 hi.cod.winter$scal$species <- "Cod"
 hi.cod.winter$CA1$eras  <- factor.2.number(factor(hi.cod.winter$CA1$yrs, labels =5:(length(unique(hi.cod.winter$CA1$yrs))+4)))
 hi.cod.winter$CA2$eras  <- factor.2.number(factor(hi.cod.winter$CA2$yrs, labels =5:(length(unique(hi.cod.winter$CA2$yrs))+4)))
-hi.cod.winter$CA1$loc <- "CA1"
-hi.cod.winter$CA2$loc <- "CA2"
+hi.cod.winter$CA1$loc <- "CA I"
+hi.cod.winter$CA2$loc <- "CA II"
 hi.cod.winter$CA1.2 <- bind_rows(hi.cod.winter$CA1,hi.cod.winter$CA2)
 hi.cod.winter$CA1.2$species <- "Cod"
 hi.cod.winter$closure$species <- "Cod"
@@ -703,7 +718,7 @@ n.eras <- length(d.eras)
 dummy2 <- data.frame(value = c(rep(c(0,0.6),n.eras),rep(c(0,6000),n.eras)),
                      yrs = rep(d.eras,4),
                      eras = rep(1,n.eras,4),
-                     loc = c(sort(rep(c("CA1","CA2"),n.eras)),sort(rep(c("CA1","CA2"),n.eras))),
+                     loc = c(sort(rep(c("CA I","CA II"),n.eras)),sort(rep(c("CA I","CA II"),n.eras))),
                      data =  sort(rep(c("tot.area","prop.of.GB"),2*n.eras)),
                      species= rep(sort(rep(c("Cod","Yellowtail"),n.eras)),2))
 
@@ -783,7 +798,7 @@ Historically, GB was home to large groundfish fisheries including Atlantic cod (
 
 Fisheries management bodies in both Canada and the United States have implemented measures to protect cod and yellowtail on GB.  While these measures vary between the countries, both countries have collaborated to develop a shared bycatch quota for these two species; this quota has declined substantially for both species over the last decade [@andrushchenkoAssessmentEasternGeorges2018; @legaultStockAssessmentGeorges2018]. In addition to these regulations which attempt to directly limit the removals of these two species, both countries have implemented closures. In the United States two large closed area were implemented (Closed Area I and 2) in 1994, these closures were designed to aid in the recovery of groundfish and invertebrate stocks on GB [@linkEffectsAreaClosures2005; @murawskiLargescaleClosedAreas2000].  In Canada the groundfish fishery is not permitted to fish on GB during cod spawning; since 2010 this closure has started in the 5^th^ week of the year and lasts until May 31^st^.  The Canadian Offshore Scallop Fishery (COSF) also faces restrictions on fishing during the peak spawning periods with time-area closures limiting the area this fishery can operate in February and March (cod; @dfoScallopFisheryArea2019) and June [yellowtail; @dfoScallopFisheryArea2014].
 
-Here we use a recently developed statistical framework (CITE R-INLA) to develop spatio-temporal species distribution models for two depleted groundfish stocks on GB (Atlantic cod and Yellowtail flounder).  Our objectives were; 1) Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species, 2) determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed, 3) determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall, 4) using these two species as a case study investigate how well existing closures on GB align with these species during spawning and 5) determine how well these models can predict the spawning distribution of these species 1, 2, and 3 years into the future.
+Here we use a recently developed statistical framework (CITE R-INLA) to develop spatio-temporal species distribution models for two depleted groundfish stocks on GB (Atlantic cod and Yellowtail flounder).  Our objectives were; 1) Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species, 2) determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed, 3) determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall, 4) using these two species as a case study investigate how well existing closures on GB align with these species during spawning and 5) quantify how well the models can predict the spawning distribution of these species 1, 2, and 3 years into the future.
 
 
 <!-- From a scientific perspective, disentangling how environmental, ecological, and anthropogenic factors impact the population dynamics of marine fishes is pivotal to development of sustainability strategies.  -->
@@ -807,13 +822,13 @@ Survey data were obtained from the Fisheries and Oceans Canada (DFO) winter RV s
 
 ### Environmental covariates
 
-A suite of 21 environmental variables with spatial information were obtained for this analysis (Table XX).  To eliminate redundant variables, variance Inflation Factors (VIFs) were calculated for all variables and any variables with VIF scores > 3 were removed.  This procedure was repeated until no variables remained with a VIF score > 3 (CITE ZUUR). Using the remaining 16 variables a Principle Component Analysis (PCA) was undertaken for each survey using the data from station locations for each survey these environmental data with the top 4 PCA components retained (these accounted for at least 80% of the variability in the data) and were included as covariates for the models that follow.
+A suite of 21 environmental variables with spatial information were obtained for this analysis (Table \@ref(tab:enviro)).  To eliminate redundant variables, variance Inflation Factors (VIFs) were calculated for all variables and any variables with VIF scores > 3 were removed.  This procedure was repeated until no variables remained with a VIF score > 3 (CITE ZUUR). Using the remaining 16 variables a Principle Component Analysis (PCA) was undertaken for each survey using the data from station locations for each survey these environmental data with the top 4 PCA components retained (these accounted for at least 80% of the variability in the data) and were included as covariates for the models that follow.
 
 ### Statistical Analysis
 
 A Bayesian hierarchical methodology was implemented using the Integrated Nested Laplace Approximation approach available within the R Statistical Programming software R-INLA (CITE R and INLA).  In recent years R-INLA has seen a rapid increase in use to model species distributions in both within the terrestrial and marine realms (CITE SOME PAPERS). This methodology solves stochastic partial differential equations on a spatial triangulated mesh; this mesh is typically based on the data available (CITE RUE). To avoid edge effects the mesh is extended beyond the boundaries of the data, the mesh used in this study included `r mesh.gf$n` vertices (Figure \@ref(fig:Mesh)).
 
-For the INLA models data up to `r max(dat.final$year)` were used, while survey data from 2017-2019 were excluded from the main analysis and used only as testing data.  For all analyses the response variable was presence absence of the species of interest ($EP_{it}$) and a *Bernoulli* GLM was utilized within R-INLA.
+For the INLA models data up to `r max(dat.final$year)` were used, while survey data from 2017-2019 were excluded from the main analysis and used only as testing data for the spawning distribution case study.  For all analyses the response variable was presence absence of the species of interest ($EP_{it}$) and a *Bernoulli* GLM was utilized within R-INLA.
 
 $$ EP_{it} \sim Bernoulli(\pi_{it}) $$
 
@@ -825,12 +840,11 @@ $$ logit(pi_{it}) = \alpha + f(Cov_{it}) + u_{it} $$
 
 $$ u_{it} \sim GMRF(0,\Sigma) $$
 
+Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually, all continuous covariates were modelled using the INLA random walk $'rw2'$ smoother which allows for non-linear relationships between the response and each variable (Cite ZUUR Vol 1). The continuous covariates were centred at their mean value and scaled by their standard deviation, covariates which were highly skewed (e.g. depth) were log transformed before being standardized. Due to low sample size of several of the levels the Sediment type [Sed ; data obtained from @mcmullen2014GISData2014] were amalgamated into one factor level which was represented by the 'intercept' term  in models which included the Sediment type. This amalgamated level represented approximately `r 100-per.3.4.sed`% of survey tows across the three surveys (approximately `r per.3.4.sed`% of the survey tows were on the Sand or Gravel-Sand bottoms).
 
-Each variable retained after the VIF analysis along with the 4 PCA components were added to the model individually, all continuous covariates were modelled using the INLA random walk $'rw2'$ smoother which allows for non-linear relationships between the response and each variable (Cite ZUUR Vol 1). The continuous covariates were centred at their mean value and scaled by their standard deviation, covariates which were highly skewed (e.g. depth) were log transformed before being standardized. Due to low sample size of several of the levels the Sediment number (Sed) were amalgamated into one factor level which was represented by the 'intercept' term  in models which included the Sediment number. This amalgamated level represented approximately `r 100-per.3.4.sed`% of survey tows across the three surveys (approximately `r per.3.4.sed`% of the survey tows were on Sediment type 3 or 4).
+Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC, CPO, and DIC; the results for each of these metrics were similar and only the WAIC results are discussed further.  In all cases the static spatial field was an inferior model when compared to models with multiple random fields and the results discussed here use the 10/5/3 year random fields.
 
-Four spatial random fields ($u_{it}$) were compared for each species and each survey, these included a) a static random field (t = 1), b) independent random fields every 10 years, c) independent random fields every 5 years, and d) and independent random fields every 3 years.  For b-d the random fields were set from the most recent year, so that when the time series was not a multiple of the time series length the first years of data had a shorter duration random field (e.g. the 10 year random fields for NMFS-spring survey were 2007-2016, 1997-2006, 1987-1996, 1977-1986, and 1972-1976). Models with the same covariate structure but different random fields were compared using WAIC and DIC; the results for both metrics were similar and only the WAIC results are discussed further.  In all cases the static spatial field was an inferior model when compared to models with multiple random fields and the results discussed here use the 10/5/3 year random fields.
-
-Initial model selection for the different covariate models was undertaken using a static random field (due to computational constraints) by adding individual covariates. For this first analysis covariates were retained if low WAIC scores were observed across multiple models. For cod this analysis identified depth (DEP) and the average sea surface temperature between 1997 and 2008 (SST) as having low WAIC scores in 2 of the 3 surveys.  For yellowtail, depth (DEP) was the primary covariate observed, in addition sediment grain size (SED), and the average chlorophyll concentration between 1997 and 2008 (CHL) were retained due to their low scores in one survey. These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) for both species and again compared using WAIC. For cod a three term model including additive terms for SST, DEP, and CHL was the most complex model tested, while for yellowtail the most complex model included SST, DEP, and SED.  For this step additional covariates were retained if the WAIC for that model resulted in an improvement of the WAIC of more than 2 when compared to the lowest WAIC more parsimonious model.
+Initial model selection for the different covariate models was undertaken using a static random field (due to computational constraints) by adding individual covariates. For this first analysis covariates were retained if low WAIC (CPO and DIC results were similar to WAIC so only WAIC is discussed further) scores were observed across multiple models. For cod this analysis identified depth (DEP) and the average sea surface temperature between 1997 and 2008 (SST) as having low WAIC scores in 2 of the 3 surveys [Data obtained from @greenlawGeodatabaseHistoricalContemporary2010].  For yellowtail, depth (DEP) was the primary covariate observed, in addition sediment grain size (SED), and the average chlorophyll concentration between 1997 and 2008 (CHL) were retained due to their low scores in one survey. These variables were added pairwise (e.g. models included SST + DEP, DEP + CHL, and SST + CHL) for both species and again compared using WAIC. For cod a three term model including additive terms for SST, DEP, and CHL was the most complex model tested, while for yellowtail the most complex model included SST, DEP, and SED. For this step additional covariates were retained if the WAIC for that model resulted in an improvement of the WAIC of more than 2 when compared to the lowest WAIC more parsimonious model.
 
 ### Model Validation 
 
@@ -840,7 +854,7 @@ Five fold cross validation was used to test the predictive performance of the mo
 
 These model results were used to track changes in the distributions of cod and yellowtail during spawning on GB. Cod spawn between November and May on GB with a spawning peak in February and March; the DFO Winter survey occurs during this period and was used for the cod spawning analyses [@obrienMaturation19Species1993]. Yellowtail spawning occurs mostly in the spring between April and August, with peak spawning in May and June; the NMFS Spring survey occurs during this period and was used for the yellowtail analyses [@obrienMaturation19Species1993].  To test how well these surveys were able to predict future spawning aggregations data from the 2017-2019 surveys was used as a testing dataset . This analysis utilized the predictions from the 3 and 5 year random field with the SST + Dep models to predict the EP of observed data 1, 2, and 3 years into the future. For each of the 3 years the predictive error was estimated using RMSE, MAE, and SD and this was compared to the observed residual error from each model (given similarity of the results only the RMSE is discussed).
 
-There are 4 distinct partial closures within the domain of these surveys, two large year round closures on the U.S. side of GB, and two smaller time-area closures in Canadian waters which effect the Canadian Offshore Scallop Fleet (COSF).  There is also a full closure of GB to the Canadian Groundfish fishery which begins in early February, this closure is not explored in detail here due to the complete exclusion of this fishery from GB. In the U.S. Closed Area 1 (CA1) and Closed Area 2 (CA2) were implemented in 1994 in an effort to rebuild stocks in the region [@linkEffectsAreaClosures2005]. CA1 is approximately `r CA1.area` km² and extends outside the primary domain of the surveys in this study; this analysis is limited to the region of CA1 which is inside the primary survey domain of this study (`r CA1.clp.area` km²). CA2 straddles and Canadian border and covers `r CA2.area` km² with the majority of this area (`r CA2.clp.area` km²) within the domain used in this study. Portions of both of these areas have allowed for scallop fishery access in a sub-area of the closure since 1999 [@linkEffectsAreaClosures2005; @okeefeFormingPartnershipAvoid2013].
+There are 4 distinct partial closures within the domain of these surveys, two large year round closures on the U.S. side of GB, and two smaller time-area closures in Canadian waters which effect the Canadian Offshore Scallop Fleet (COSF).  There is also a full closure of GB to the Canadian Groundfish fishery which begins in early February, this closure is not explored in detail here due to the complete exclusion of this fishery from GB. In the U.S. Closed Area I (CA II) and Closed Area II (CA II) were implemented in 1994 in an effort to rebuild stocks in the region [@linkEffectsAreaClosures2005]. CA I is approximately `r CA I.area` km² and extends outside the primary domain of the surveys in this study; this analysis is limited to the region of which is inside the primary survey domain of this study (`r CA1.clp.area` km²). CA II straddles and Canadian border and covers `r CA2.area` km² with the majority of this area (`r CA2.clp.area` km²) within the domain used in this study. Portions of both of these areas have allowed for scallop fishery access in a sub-area of the closure since 1999 [@linkEffectsAreaClosures2005; @okeefeFormingPartnershipAvoid2013].
 
 On the Canadian side the objectives of both the time-area closures are to reduce discards from the COSF of spawning cod and yellowtail.  One closure occurs in February and March and is designed to protect spawning cod, this closure was first implemented in 2006; the other closure was first put in place in 2007, occurs in June, and is designed to protect spawning yellowtail.  The location and size of each closure can vary from year to year and they employee unique methodologies to delineate the closed area in any given year, although the location of the yellowtail closure has not changed since 2014 [@dfoScallopFisheryArea2014;@dfoScallopFisheryArea2019].  For this analysis the historical trends of EP within the domain of the COSF was quantified and compared to the EP within the Canadian cod and yellowtail closures designs between 2007-2016 using only the 5 year random field model.
 
@@ -848,13 +862,13 @@ On the Canadian side the objectives of both the time-area closures are to reduce
 
 ### Model Selection
 
-Initial model selection resulted in a significant reduction in the number of covariates in the model.  For cod, the Winter (DFO) and Spring (NMFS) both identified SST as significant covariates, while the Spring survey also identified depth and stratification, the Fall (NMFS) survey did not indicate any covariates with an WAIC that were a significant improvement from the intercept only model, although again the inclusion of Depth did result in a slightly smaller WAIC (Figure \@ref(fig:diag-1-fe)).  For yellowtail, inclusion of depth significantly improved the models in all 3 seasons (surveys), while Sediment grain size (Sed) and chlorophyll concentration in the Fall had a similar impact on the model WAIC as SST. As a result SST, Depth, Chl, and Sed were used to explore the development of more complex covariate models. For cod these more complex models resulted in an additive Dep + SST model being the preferred model in all 3 seasons (Figure \@ref(fig:diag-2-fe)). For yellowtail the best models with 2 covariates included some combination of Dep, SST, and Sed, further model selection indicated that the best model for yellowtail in all 3 seasons was an additive model including Dep, SST, and Sed (Figures \@ref(fig:diag-2-fe) and \@ref(fig:diag-3-fe)). The cod the 5 year random field had the lowest WAIC in all seasons, while for yellowtail the 3 year field was preferred for Winter and Spring, while the 5 year field was preferred for Fall (Figure \@ref(fig:diag-rf)).
+Initial model selection resulted in a significant reduction in the number of covariates in the model.  For cod, the Winter (DFO) and Spring (NMFS) both identified SST as significant covariates, while the Spring survey also identified depth and stratification, the Fall (NMFS) survey did not indicate any covariates with an WAIC that were a significant improvement from the intercept only model, although again the inclusion of Depth did result in a slightly smaller WAIC (Figure \@ref(fig:diag-1-fe)).  For yellowtail, inclusion of depth significantly improved the models in all 3 seasons (surveys), while Sediment type (Sed) and chlorophyll concentration in the Fall had a similar impact on the model WAIC as SST. As a result SST, Depth, Chl, and Sed were used to explore the development of more complex covariate models. For cod these more complex models resulted in an additive Dep + SST model being the preferred model in all 3 seasons (Figure \@ref(fig:diag-2-fe)). For yellowtail the best models with 2 covariates included some combination of Dep, SST, and Sed, further model selection indicated that the best model for yellowtail in all 3 seasons was an additive model including Dep, SST, and Sed (Figures \@ref(fig:diag-2-fe) and \@ref(fig:diag-3-fe)). The cod the 5 year random field had the lowest WAIC in all seasons, while for yellowtail the 3 year field was preferred for Winter and Spring, while the 5 year field was preferred for Fall (Figure \@ref(fig:diag-rf)).
 
 ### Environmental Variables
 
-The average SST between 1997 and 2008 had the largest effect on the EP (encounter probability) of cod, they were generally more likely to be found in colder regions of the bank with the EP declining rapidly in regions of the bank in which the SST was above approximate 10°C (Figure \@ref(fig:cod-fe)).  The depth relationship was also retained in the final cod model though the effect on EP was substantially smaller, during the Winter and Spring the EP peaked between approximately 60 and 90 meters and declined slowly in shallower and deeper waters (Figure \@ref(fig:cod-fe)).
+The spatial fields for the three environmental variables retained by model selection are shown in Figure \@ref(fig:SST-Dep-Sed).  The average SST between 1997 and 2008 had the largest effect on the EP (encounter probability) of cod, they were generally more likely to be found in colder regions of the bank with the EP declining rapidly in regions of the bank in which the SST was above approximate 10°C (Figure \@ref(fig:cod-fe)).  The depth relationship was also retained in the final cod model though the effect on EP was substantially smaller, during the Winter and Spring the EP peaked between approximately 60 and 90 meters and declined slowly in shallower and deeper waters (Figure \@ref(fig:cod-fe)).
 
-For yellowtail depth had the largest effect on EP, with Yellowtail being most likely to be observed between depths of 60 and 90 meters and the EP being higher during the Spring (Figure \@ref(fig:yt-fe)). The average SST between 1997 and 2008 was also included in the final model in all three seasons, with yellowtail EP generally declining slightly as SST increased.  The Sediment type also had a significant influence on the EP for yellowtail, with Sediment types 3 and 4 having higher EP's than other sediment types, this difference is most notable during the Winter, but model selection slightly favoured the Sediment model in the Spring and Winter as well although the effect size declined in these years (Figures \@ref(fig:cod-fe) and \@ref(fig:diag-3-fe)). 
+For yellowtail depth had the largest effect on EP, with Yellowtail being most likely to be observed between depths of 60 and 90 meters and the EP being higher during the Spring (Figure \@ref(fig:yt-fe)). The average SST between 1997 and 2008 was also included in the final model in all three seasons, with yellowtail EP generally declining slightly as SST increased.  The sediment type also had a significant influence on the EP for yellowtail, with Sand and Gravel-Sand having higher EP's than other sediment types, this difference is most notable during the Winter, but model selection slightly favoured the Sediment model in the Spring and Winter as well although the effect size declined in these years (Figures \@ref(fig:cod-fe) and \@ref(fig:diag-3-fe)). 
 
 Inter-annual and Seasonal Variability 
 
@@ -870,7 +884,7 @@ The 5-fold cross validation indicated that all of the models were able to predic
 
 The 3 and 5 year random field models resulted in a loss of accuracy when predicting the spawning distributions of each species 1, 2, and 3 years into the future (Figure \@ref(fig:pred-17-19)), but the predictions were well below the RMSE associated with a model with no predictive ability (dashed line Figure \@ref(fig:pred-17-19)).  For both species the 2018 data consistently had the lowest prediction accuracy with the predictive models tending expect encounters where no individuals were observed. (Figure \@ref(fig:pred-17-19) and Supplement).
 
-In the U.S., the area of high EP during spawning in CA1 declined for both species (recall the Winter cod survey began in 1987) with high EP areas approaching 0 for both species starting in 2002 (Figure \@ref(fig:CA1-2)). In the late 1980's and early 1990's CA1 had accounted for between 10 and 20% of the high EP on GB during spawning.  In CA2 the decline in high EP area for cod was similar to that observed for yellowtail, although some High EP area within CA2 was observed in recent years for cod; at it's peak CA2 represented over 20% of the high EP on GB. The area of high EP for yellowtail on CA2 declined rapidly during the 1970's and 1980's, but has since rebounded and the total high EP area was similar to that observed during the early 1970's in the 2012-2016 era. The proportion of high EP within CA2 during spawning increased from approximately 30% of the bank during the 1970s-1980s to as high as 50% in more recent years (Figure \@ref(fig:CA1-2)).
+In the U.S., the area of high EP during spawning in CA I declined for both species (recall the Winter cod survey began in 1987) with high EP areas approaching 0 for both species starting in 2002 (Figure \@ref(fig:CA1-2)). In the late 1980's and early 1990's CA I had accounted for between 10 and 20% of the high EP on GB during spawning.  In CA II the decline in high EP area for cod was similar to that observed for yellowtail, although some High EP area within CA II was observed in recent years for cod; at it's peak CA II represented over 20% of the high EP on GB. The area of high EP for yellowtail on CA II declined rapidly during the 1970's and 1980's, but has since rebounded and the total high EP area was similar to that observed during the early 1970's in the 2012-2016 era. The proportion of high EP within CA II during spawning increased from approximately 30% of the bank during the 1970s-1980s to as high as 50% in more recent years (Figure \@ref(fig:CA1-2)).
 
 In Canada, the closures are directed at the COSF and the high EP area for cod during spawning within the COSF domain has generally been in decline with the area of high EP approximately 40% lower in the most recent era than at the start of the time series; the proportion of the COSF domain with high EP during spawning has declined from 95% to 55% during this time (Figure \@ref(fig:scal-fa)).  Despite this decline in area, the proportion of the high EP on GB located within the COSF domain has increased from 20% to over 60% during this time due to the loss of high EP area throughout much of the U.S. portion of GB (Figure \@ref(fig:scal-fa)). The cod closure has included between 200 and 300 km² of high EP since 2007 and over 80% of the closure has historically been high EP for cod (Figure \@ref(fig:scal-close)).  Despite this, the small size of this closure results in these closures accounting for less than 20% of the high EP within the COSF domain.
 
@@ -882,27 +896,25 @@ Here we have shown how models which incorporate environmental, spatial, and mult
 
 ### Yellowtail
 
-The depth, static SST, and sediment type were generally the most influential variables for yellowtail for all the models tested. Yellowtail were most likely to be found on XXXX bottom at depths between XX and XX meters [@obrienMaturation19Species1993] and in historically lower SST regions of the bank; the core area around CA2 represents the most northern region of this habitat on GB. The decline in yellowtail biomass over last decade may be tied to environmental change throughout the region given that the biomass of yellowtail are low throughout the U.S., which represents the southern limit of the historical range of this species (@legaultStockAssessmentGeorges2018; @nfsc54thNortheastRegional2012; @NOAAYellowtailFlounder). Given the loss of Yellowtail from the warmer portions of the bank (West and South) observed in this study it is possible that the remaining core area around CA2 represents the last suitable habitat on GB for this species. If temperatures continue to increase as projected [@allynComparingSynthesizingQuantitative2020] the suitability of this last habitat may decline which could effectively lead to the extirpation of yellowtail from GB irrespective of any fisheries management action.
+In the U.S. portion of GB closures were put in place in 1994 to assist with the rebuilding of stocks in the region, these closures have been considered as instrumental in the rebuilding of several stocks in the late 1990s [@linkEffectsAreaClosures2005; @murawskiLargescaleClosedAreas2000].  Here we see a slight increase in the high EP area for yellowtail during spawning in CA I around the time the closure was put in place which followed a steady decline in the 1970s and 1980s. The high EP area has subsequently declined steadily for yellowtail during its spawning period in CA I.  While CA I historically had represented only around 10% of high EP yellowtail area, in recent decades this has dropped to near 0. Given the limited fishing activity inside CA I during this period, it is likely that this shift in the distribution is due the shifting environmental conditions on GB [@allynComparingSynthesizingQuantitative2020]. Closed Area II (CA II), which straddles the ICJ line, had experienced a large rapid decline in high EP yellowtail area during spawning in the years leading up to the implementation of the CA II closure. This was followed by an large rapid increase in high EP for yellowtail which begins around the time this CA II was put in place.  In recent years CA II contains 40-50% of the high EP yellowtail area on GB during spawning and appears to represent the last large scale habitat suitable for yellowtail on the U.S. side of GB. The rapid expansion of the core yellowtail habitat in the early 2000's was centred on CA II with spillover evident into Canada and corresponded to a rapid increase in yellowtail biomass on GB [@legaultStockAssessmentGeorges2018].  The core area of high EP for yellowtail remained relatively stable starting in the early 2000s and was similar in size to what was observed in the 1970s before this closure was put in place. These results suggest evidence of a positive association between this closure and yellowtail status, but the abrupt yellowtail population decline in the early 2010s [@legaultStockAssessmentGeorges2018], despite the ongoing minimal fishing effort in the area, suggest that the shifting environmental conditions on GB may now be effecting the stock within CA II [@pershingSlowAdaptationFace2015]. 
 
-In the U.S. portion of GB closures were put in place in 1994 to assist with the rebuilding of stocks in the region, these closures have been considered as instrumental in the rebuilding of several stocks in the late 1990s [@linkEffectsAreaClosures2005; @murawskiLargescaleClosedAreas2000].  Here we see a slight increase in the high EP area for yellowtail during spawning in CA1 around the time the closure was put in place which followed a steady decline in the 1970s and 1980s. The high EP area has subsequently declined steadily for yellowtail during its spawning period in CA1.  While CA1 historically had represented only around 10% of high EP yellowtail area, in recent decades this has dropped to near 0. Given the limited fishing activity inside CA1 during this period, it is likely that this shift in the distribution is due the shifting environmental conditions on GB [@allynComparingSynthesizingQuantitative2020].
+On the Canadian side of GB (approximated here by the domain of the COSF) there has been no directed yellowtail fishery since 2012 [@legaultStockAssessmentGeorges2018]. The primary source of fishery mortality comes from bycatch in the Canadian groundfish and COSF fisheries. In an effort to protect these spawning aggregations from bycatch from these fisheries on GB the Canadian groundfish fishery is excluded from GB from early February until the end of May while the COSF is excluded from fishing inside the time-area closure analyzed in this study in June. Unfortunately, this time-area closure protects only a small proportion of the high EP yellowtail spawning area within the COSF fishing domain. While the area in which the COSF is excluded from are predominately regions in which yellowtail are commonly found, due to their limited size these closures are likely to have little impact on bycatch in the COSF. This aligns with previous research which found that bycatch rates from the COSF remain elevated when this closure is in place [Cite PLOS-one].
 
-CA2, which straddles the ICJ line, had experienced a large rapid decline in high EP yellowtail area during spawning in the years leading up to the implementation of the CA2 closure. This was followed by an large rapid increase in high EP for yellowtail which begins around the time this CA2 was put in place.  In recent years CA2 contains 40-50% of the high EP yellowtail area on GB during spawning and appears to represent the last large scale habitat suitable for yellowtail on the U.S. side of GB. The rapid expansion of the core yellowtail habitat in the early 2000's was centred on CA2 with spillover evident into Canada and corresponded to a rapid increase in yellowtail biomass on GB [@legaultStockAssessmentGeorges2018].  The core area of high EP for yellowtail remained relatively stable starting in the early 2000s and was similar in size to what was observed in the 1970s before this closure was put in place. These results suggest evidence of a positive association between this closure and yellowtail status, but the abrupt yellowtail population decline in the early 2010s [@legaultStockAssessmentGeorges2018], despite the ongoing minimal fishing effort in the area, suggest that the shifting environmental conditions on GB may now be effecting the stock within CA2 [@allynComparingSynthesizingQuantitative2020]. 
-
-On the Canadian side of GB (approximated here by the domain of the COSF) there has been no directed yellowtail fishery since 2012 [@legaultStockAssessmentGeorges2018]. The primary source of fishery mortality comes from bycatch in the Canadian groundfish and COSF fisheries. In an effort to protect these spawning aggregations from bycatch from these fisheries on GB the Canadian groundfish fishery is excluded from GB from early February until the end of May. In June the COSF is excluded from fishing inside the time-area closure analyzed in this study, unfortunately, this time-area closure protects only a small proportion of the high EP yellowtail spawning area within the COSF fishing domain. While the area in which the COSF is excluded from are predominately regions in which yellowtail are commonly found, due to their limited size these closures are likely to have little impact on bycatch in the COSF. This aligns with previous research which found that bycatch rates from the COSF remain elevated when this closure is in place [Cite me].
+The depth, static SST, and sediment type were generally the most influential variables for yellowtail for all the models tested. Yellowtail was unlikely to be found on bottom types which did not include sand and was more frequently found at depths between approximately 60 and 80 meters [@obrienMaturation19Species1993] and in historically lower SST regions of the bank; most of the remaining habitat which meet these criteria are found in CA II and in Canadian waters on GB. The random fields in each season (see supplemental material) also indicated a consistent increased likelihood of encountering yellowtail in the region straddling the Canadian and U.S. border which suggests there is some unexplained ecological or environmental significance in this region. The shift in the distribution of yellowtail away from more southern and western parts of GB combined with the declines in biomass of yellowtail throughout the U.S. supports the view that the environmental change which has been observed throughout U.S. waters has been a factor in the recent decline of yellowtail both on GB and throughout the region [@legaultStockAssessmentGeorges2018; @nfsc54thNortheastRegional2012; @NOAAYellowtailFlounder; @pershingSlowAdaptationFace2015]. Given the loss of Yellowtail from the warmer portions of the bank observed in this study it is possible that the remaining core area around CA II and in Canada represents the most northern suitable habitat on GB for this species. If temperatures continue to increase as projected the suitability of this habitat may decline which could result in the extirpation of yellowtail from GB irrespective of any fisheries management action [@allynComparingSynthesizingQuantitative2020].
 
 ### Cod
 
-For cod the static SST layer and depth were the most influential covariates and indicated that cod preferred the colder portions of the bank throughout the year. The interpretation of the static SST layer as a thermal effect assumes that the relative temperature patterns on the bank have remained static over time.  More advanced models using either a dynamic SST or modelled bottom temperature layer would lead to further insights into the drivers of change in the distribution of cod over time. The distribution of cod has steadily shifted throughout the duration of the study period. The depth preference of cod is more variable than yellowtail (6-400 meters ish, find a real citation) but as observed with yellowtail the high EP areas in the more southern and western reaches of the bank have primarily been the reason for the apparent shift in the distribution of cod into Canadian waters.  
+On the U.S. side of GB there was a rapid decline in the high EP area within CA I for cod during spawning which continued even after this area was closed. This decline was similar to the decline observed at the bank scale and in recent years there has been no high EP area within CA I.  Similar rapid declines were observed in CA II and since 1987 this represents a loss of over 7000 km² of high EP area in the U.S. despite the implementation of these closures. These two closures represented over 30% of the high EP cod area during spawning in the late 1980s and now represents < 10% of the spawning area on GB. These declines are similar to what has been experience throughout the U.S. side of GB during this time, with a loss of cod from U.S. waters and a shift in the distribution of the species to be predominately located in Canadian waters throughout the year.
 
-The high EP area for cod collapsed rapidly in the early 1990's in unison with the collapse of cod (and other groundfish) stocks throughout the Northwest Atlantic [@bundySealsCodForage2009].  Since the collapse the core area has remained relatively consistent but has continued to slowly shift to the north and east throughout the year, though the shift is more pronounced in the fall. The fall distribution of cod is likely now located on the northeastern slope of the bank outside of the core survey domains of any of the surveys.  This northeastern shift of the population over the course of this study suggests that the surveys are no longer sampling the entirety of this population throughout the course of the year (i.e. a higher proportion of the stock is now located outside of the survey domain).  Each of the survey indices are used as inputs to the cod stock assessment model for eastern GB cod [@andrushchenkoAssessmentEasternGeorges2018]. This assessment model suffered from such significant retrospective patterns that this stock assessment model was eventually rejected; it is possible that the observed shift in the distribution of cod outside of the survey domain was an unknown contributing factor to the model retrospective problems [@andrushchenkoAssessmentEasternGeorges2018]. In addition, because the management of this stock is shared between Canada and the U.S., the observed shift in the core distribution to Canadian waters suggests that shared management policies, such as quota sharing agreements between the two juridications, may require regular review [e.g. @tmgcDevelopmentSharingAllocation2002].
+On the Canadian side of GB (approximated here by the domain of the COSF) while there has been a large decline in high EP area, this decline has been far more muted than experienced in U.S. waters. Declines in Canada peaked at approximately 40% in the COSF domain in recent years. Combined with the losses observed in the U.S. this resulted in a rapid increase in the proportion of the high EP domain being located in Canada; the COSF domain accounted for < 10% of high EP during spawning in the late 1980s, but in the most recent era over 60% of the high EP area for cod was located with the COSF domain. Similar to yellowtail, the closure of the COSF to protect spawning aggregations of cod are predominately located in high EP areas, but due to their limited size the closures protect only a small percentage of the high cod EP area within the COSF domain. This agrees with evidence that bycatch rates remain elevated when this closure is in place [Cite PLOS-one].
 
-On the U.S. side of GB there was a rapid decline in the high EP area within CA1 for cod during spawning which continued even after this area was closed.  This decline was similar to the decline observed at the bank scale and in recent years there has been no high EP area within CA1.  Similar rapid declines were observed in CA2 and since 1987 this represents a loss of over 7000 km² of high EP area in the U.S. despite the implementation of these closures. These two closures represented over 30% of the high EP cod area during spawning in the late 1980s and now represents < 10% of the spawning area on GB. These declines are simlar to what has been experience throughout the U.S. side of GB during this time, with a loss of cod from U.S. waters and a shift in the distribution of the species to be predominately located in Canadian waters throughout the year.
+For cod the static SST layer and depth were the most influential covariates and indicated that cod preferred the colder portions of the bank throughout the year. The interpretation of the static SST layer as a thermal effect assumes that the relative temperature patterns on the bank have remained static over time.  More advanced models using either a dynamic SST or modelled bottom temperature layer would lead to further insights into the drivers of change in the distribution of cod over time [@greenanClimateChangeVulnerability2019; @pershingSlowAdaptationFace2015]. The distribution of cod has steadily shifted throughout the duration of the study period. The depth preference of cod is more variable than yellowtail (6-400 meters ish, find a real citation) but as observed with yellowtail the high EP areas in the more southern and western reaches of the bank have primarily been the reason for the apparent shift in the distribution of cod into Canadian waters.  
 
-On the Canadian side of GB (approximated here by the domain of the COSF) while there has been a large decline in high EP area, this decline has been far more muted than experienced in U.S. waters. Declines in Canada peaked at 40% in the COSF domain in recent years. This has resulted in a rapid increase with the COSF domain accounting for < 10% of high EP during spawning in the late 1980s jumping to approximately 60% in the most recent era. Similar to yelowtail, the closure of the COSF to protect spawning aggregations of cod are predominately located in high EP areas, but due to their limited size the closures protect only a small percentage of the high cod EP area within the COSF domain. This agrees with evidence that bycatch rates remain elevated when this closure is in place [Cite me].
+The high EP area for cod collapsed rapidly in the early 1990's in unison with the collapse of cod (and other groundfish) stocks throughout the Northwest Atlantic [@bundySealsCodForage2009].  Since the collapse the core area has remained relatively consistent but has continued to slowly shift to the north and east throughout the year, though the shift is more pronounced in the fall. The fall distribution of cod is likely now located on the northeastern slope of the bank outside of the core survey domains of any of the surveys.  This northeastern shift of the population over the course of this study suggests that the surveys are no longer sampling the entirety of this population throughout the course of the year (i.e. a higher proportion of the stock is now located outside of the survey domain).  Each of the survey indices area used as inputs to the cod stock assessment model for eastern GB cod [@andrushchenkoAssessmentEasternGeorges2018]. This assessment model suffered from such significant retrospective patterns that this stock assessment model was eventually rejected; it is possible that the observed shift in the distribution of cod outside of the survey domain was an unknown contributing factor to the model retrospective problems [@andrushchenkoAssessmentEasternGeorges2018]. In addition, because the management of this stock is shared between Canada and the U.S., the observed shift in the core distribution to Canadian waters suggests that shared management policies, such as quota sharing agreements between the two jurisdictions, may require regular review [e.g. @tmgcDevelopmentSharingAllocation2002].
 
 # Conclusions
 
-These models provides insight into how the distribution of both species changes both seasonally and inter-annually and how many environmental covariates, when treated spatially, have little impact on these patterns. The only static environmental data which had a significant effect on the species distributions were temperature, depth, and bottom type (yellowtail only). The inter-annual shifts in species distribution indicate the increasing importance of Canadian waters for both species on GB which is likely is due to the long-term environmental shifts observed in the region. These results suggest that given the habitat constraints faced by both species the continuation of directed environmental change will likely put both species at risk of extirpation from GB. Utilizing the spatio-temporal information contained in these models also provides novel insights which can be used to improve science advice (e.g. accounting for shifting distributions in stock assessment or choosing the location of protected areas) and lead to more sustainable fisheries management. 
+These models provide insight into how the distribution of both species changes both seasonally and inter-annually and how many environmental covariates, when treated spatially, have little impact on these patterns. The only static environmental data which had a significant effect on the species distributions were temperature, depth, and bottom type (yellowtail only). The inter-annual shifts in species distribution indicate the increasing importance of Canadian waters for both species on GB which is likely is due to the long-term environmental shifts observed in the region. The distributional shifts also highlight the difficulties encountered by static closed areas in light of environmental change, for both species the utilization of the closed areas has changed over time and for CA I it is likely this area not longer contains substantial areas of core habitat for either of these species in the current environment at any time of the year. Given the habitat constraints faced by both species the continuation of directed environmental change will likely put both species at increased risk of extirpation from U.S. waters and, in the longer term, all of GB irrespective of any fisheries management action. The utilization of the spatio-temporal information contained in these models provides novel insights which can be used to improve science advice (e.g. accounting for shifting distributions in stock assessment and choosing the location of protected areas) and lead to more informed fisheries management decisions. 
 
 ## Acknowledgements 
 
@@ -911,31 +923,26 @@ Ms. Pectindy
 
 \onecolumn
 
-<!-- <br> -->
-<!-- <!-- Insert table 1 note how I'm dealing with the figure caption here--> 
-<!-- ```{r,Aggregate,echo=F} -->
-<!-- options(knitr.kable.NA = '') -->
-<!-- knitr::kable( -->
-<!--   table_1, booktabs = TRUE, format='pandoc',  -->
-<!--   caption = "Summary of the past closures.  Area is in $km^2$, Perimeter is $km$.  The aggregation index is the ratio of the Perimeter to Area, lower values indicate increased aggregation." -->
-<!-- ) -->
-<!-- ``` -->
+
+<!-- Insert table 1 note how I'm dealing with the figure caption here-->
+```{r,envrio,echo=F}
+options(knitr.kable.NA = '')
+knitr::kable(
+  table_1, booktabs = TRUE, format='pandoc',
+  caption = "Enviromental variables used in the analysis "
+)
+```
 
 
 <br>
 
-```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank (GB) study area.  Points represent the sample locations for each of the three surveys and the orange outline represets the core region of GB included in these analyses (42,000 km²).  In the U.S. the blue polygon is Closed Area 1 (CA1) and the white polygon is Closed Area 2 (CA2). In Canada the small gold bordered cells (each cells covers an area of approximately 42.7 km²) represent areas which have been included in either the cod or yellowtail closures at least once.  Some of the cells have been part of both closures and not all cells are closed each year; darker fill indicates cells which have been closed more frequently. The red line indicates the Canadian exclusive economic zone (EEZ)."}
+```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank (GB) study area.  Points represent the sample locations for each of the three surveys and the orange outline represets the core region of GB included in these analyses (42,000 km²).  In the U.S. the blue polygon is Closed Area I (CA I) and the white polygon is Closed Area II (CA II). In Canada the small gold bordered cells (each cells covers an area of approximately 42.7 km²) represent areas which have been included in either the cod or yellowtail closures at least once.  Some of the cells have been part of both closures and not all cells are closed each year; darker fill indicates cells which have been closed more frequently. The red line indicates the Canadian exclusive economic zone (EEZ)."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(over.plt)
 ```
 
 
-```{r SST-and-Depth, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Average Sea Surface Temperature on Georges Bank (GB) from 1997-2008 (SST in °C) on the left and the GB bathymetry (depth in meters) on the right"}
-# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
-knitr::include_graphics(sst_depth_spatial.plt)
-```
-
-```{r Mesh, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Mesh used for INLA models, mesh contains 6610 vertices."}
+```{r Mesh, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Delaunay triangular mesh used for the spatial fields mesh. The mesh contains 6610 vertices."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(mesh.plt)
 ```
@@ -960,12 +967,17 @@ knitr::include_graphics(diag.waic.3.covars.fe.plt)
 knitr::include_graphics(diag.waic.rf.plt)
 ```
 
+```{r SST-Dep-Sed, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Average Sea Surface Temperature on Georges Bank (GB) from 1997-2008 (SST in °C) in the top panel, GB bathymetry (depth in meters) in the center panel, and GB sediment type in the bottom panel."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(sst_depth_spatial.plt)
+```
+
 ```{r cod-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Fixed effects for cod from each survey, top row is the depth covariate effect, bottom row is the SST effect. Results transformed to the probability scale and the blue shaded region represents the 95% credible interval."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(cod.fe.plt)
 ```
 
-```{r yt-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Fixed effects for yellowtail from each survey, the top row is the depth covariate effect, middle row is the SST effect and the bottom row is the effect of Sediment. Results transformed to the probability scale, and the blue shaded region and the error bars represent the 95% credible intervals."}
+```{r yt-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Fixed effects for yellowtail from each survey, the top row is the depth covariate effect, middle row is the SST effect and the bottom row is the effect of sediment type. Results transformed to the probability scale, and the blue shaded region and the error bars represent the 95% credible intervals."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(yt.fe.plt)
 ```
@@ -991,7 +1003,7 @@ knitr::include_graphics(pred.17.19.plt)
 ```
 
 
-```{r CA1-2, echo=FALSE,out.width="100%",dpi=200,fig.cap = "The high EP area located within the U.S. Closed Area 1 (CA1; top row) and Closed Area 2 (CA2; bottom row).  The panels on the left represents the total area of high EP by era. The panels on the right is the proporiton of the total high EP on GB which is located within the closure.  The green line represent cod and the black line represents yellowtail. "}
+```{r CA1-2, echo=FALSE,out.width="100%",dpi=200,fig.cap = "The high EP area located within the U.S. Closed Area I (CA I; top row) and Closed Area II (CA II; bottom row).  The panels on the left represents the total area of high EP by era. The panels on the right is the proporiton of the total high EP on GB which is located within the closure.  The green line represent cod and the black line represents yellowtail. "}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(CA1.CA2.plt)
 ```

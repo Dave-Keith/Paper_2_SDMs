@@ -13,6 +13,10 @@ runtime: shiny
 
 
 ```{r global, include=FALSE}
+
+# Point this to whever you have clones/saved the github repo the remainder of the code should 
+direct.proj <- "D:/Github/"
+
 ################Section 1    Load data and functions ########################## ################Section 1    Load data and functions ##########
 library(shiny)
 library(shinyWidgets)
@@ -32,8 +36,7 @@ library(animation)
 library(RCurl)
 library(boot)
 
-#direct.fun <- "Y:/Offshore/Assessment/"
-direct.proj <- "D:/Github/"
+
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
 #direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
 
@@ -194,9 +197,12 @@ renderPlot({
             int.res$LCI <- int.res$`0.025quant`
           }
 
-          # Note that this will get the intercept + the Sediment terms for the models with sed in them.
+          # Note that this will get the intercept + the Sediment terms for the models with sed in them.       
+          if(nrow(int.res) == 1) int.res$level <- "Intercept"
           if(nrow(int.res) >1)
           {
+            rownames(int.res) <- c("Other","Gravel-Sand","Sand")
+            int.res$level <- factor(rownames(int.res), levels = c("Other","Gravel-Sand","Sand"))
             # Trun the 'effects' into a 'means' estimate, this doesn't fully account for uncertain, but get's the point across.
             if(input$field == 'response')
             {
@@ -211,16 +217,17 @@ renderPlot({
               int.res$LCI[2:nrow(int.res)]  <- (int.res$mean[1] + int.res$`0.025quant`[2:nrow(int.res)])
               int.res$UCI[2:nrow(int.res)] <- (int.res$mean[1] + int.res$`0.975quant`[2:nrow(int.res)])
             }
-            int.res <- int.res[-1,] # Get rid of the 'intercept' row as it's basically meaningless for what we're doing here
+            
+            #int.res <- int.res[-1,] # Get rid of the 'intercept' row as it's basically meaningless for what we're doing here
           } # if(nrow(int.res) >1)
          # Get the correct field names
           names(int.res)[names(int.res) == input$field] <- "res"
           # Make the intercept plot
-          if(input$field != 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=rownames(int.res))) + ylab("Estimate") +  xlab("") + ylim(limy) + 
-                                                          geom_errorbar(aes(x = rownames(int.res),ymax = UCI,ymin = LCI),alpha=0.5,width=0)  + 
+          if(input$field != 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=level)) + ylab("Estimate") +  xlab("") + ylim(limy) + 
+                                                          geom_errorbar(aes(x = level,ymax = UCI,ymin = LCI),alpha=0.5,width=0)  + 
                                                           theme_bw() + theme(text = element_text(size=22))
           
-          if(input$field == 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=rownames(int.res))) + xlab("") + ylab("Estimate") +ylim(limy) +
+          if(input$field == 'sd') pi <- ggplot(int.res) + geom_point(aes(y = res,x=level)) + xlab("") + ylab("Estimate") +ylim(limy) +
                                                           theme_bw() + theme(text = element_text(size=22))
       
 
@@ -719,7 +726,7 @@ renderPlot({
 
 <!-- Next up are the figures for model prediction and Validation-->
 
-Model Prediction
+Spawning Predictions
 =====================================
 
 
