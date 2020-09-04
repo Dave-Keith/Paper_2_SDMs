@@ -15,37 +15,49 @@ runtime: shiny
 ```{r global, include=FALSE}
 
 # Point this to whever you have clones/saved the github repo the remainder of the code should 
-direct.proj <- "D:/Github/"
 
+direct.proj <- "github" # This forces the analysis to run from Github without user input
+#direct.proj <- "D:/Github/" # If you have cloned the github repo for this paper you can run this locally.
+
+req.packages <- c("shiny", 
+                  "shinyWidgets",
+                  "flexdashboard",
+                  "readr",
+                  "leaflet",
+                  "DT",
+                  "tidyverse",
+                  "lubridate",
+                  "plotly",
+                  "sf",
+                  "data.table",
+                  "units",
+                  "cowplot",
+                  "knitr",
+                  "animation",
+                  "RCurl",
+                  "boot")
+# If you don't have the packages install them + give a heads up that you are
+new.packages <- req.packages[!(req.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)>0) 
+{
+  cat(paste0("Heads up, I have to install these packages for this to work:", new.packages ))
+  #wanna.install <- readline(prompt = "If you want to install these package(s) enter 'y': ")
+  #if(tolower(wanna.install) == 'y') 
+  install.packages(new.packages,repos = "http://cran.us.r-project.org") #else { stop("You didn't want to install the packages so this script does not work.")}
+}
 ################Section 1    Load data and functions ########################## ################Section 1    Load data and functions ##########
-library(shiny)
-library(shinyWidgets)
-library(flexdashboard)
-library(readr)
-library(leaflet)
-library(DT)
-library(tidyverse)
-library(lubridate)
-library(plotly)
-library(sf)
-library(data.table)
-library(units)
-library(cowplot)
-library(knitr)
-library(animation)
-library(RCurl)
-library(boot)
-
+# Now load the packages
+invisible(lapply(req.packages, library, character.only = TRUE))
 
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/"
 #direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
 
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_coords.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
-     eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Scripts/predict_fields.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_coords.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Scripts/predict_fields.R",ssl.verifypeer = FALSE)))
 
 # A function for calculating the cpo for a model...
 fcpo <- function(m, id)
@@ -53,27 +65,43 @@ fcpo <- function(m, id)
 # Convert a factor to a number
 factor.2.number <- function(x) {as.numeric(levels(x))[x]}
 
+
 # The random fields
-load(paste0(direct.proj,"Paper_2_SDMs/data/random_fields_from_top_models.RData"))
+if(direct.proj != 'github')load(paste0(direct.proj,"Paper_2_SDMs/data/random_fields_from_top_models.RData"))
+if(direct.proj == 'github')load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/random_fields_from_top_models.RData"))
+
 # The meshes
-load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_meshes.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_meshes.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_meshes.RData"))
 
 # Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
-load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_mesh_input_data.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_mesh_input_data.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_mesh_input_data.RData"))
+
 #load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 #load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
 # Here I load the Prediction mesh/grid.
-load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_mesh.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_mesh.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/Prediction_mesh.RData"))
+
 # Here I load results from the models with the full predictive fields.
-load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_fields_all_models.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/Prediction_fields_all_models.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/Prediction_fields_all_models.RData"))
+
 # The predicted data for 2017 to 2019, this  file only contains the object all.resids which has the summary of the residuals and prediction error for the 2017-2019 data.
-load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_2017_2019_prediction_error_summary.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_2017_2019_prediction_error_summary.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_2017_2019_prediction_error_summary.RData"))
+
 # THe model diagnostics when comparing the 3/5/10 year fields...
-load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_st_3_5_10_model_diagnostics.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_st_3_5_10_model_diagnostics.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_st_3_5_10_model_diagnostics.RData"))
+
 mod.diag.fields$species <- as.factor(mod.diag.fields$species)
 levels(mod.diag.fields$species) <- c("Cod","Yellowtail")
 # Here are the fixed effects model comparisons, CPO's and model diagnostics in there
-load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+
 # Gotta run in this order for this to work...
 mod.diag.fixed$model.id[grepl("depth_sst_sed",mod.diag.fixed$model.id)] <- "Dep + SST + Sed"
 mod.diag.fixed$model.id[grepl("depth_sst",mod.diag.fixed$model.id)] <- "Dep + SST"
@@ -87,9 +115,13 @@ mod.diag.fixed$species[grepl("yt_PA",mod.diag.fixed$species)] <- "Yellowtail"
 mod.diag.fixed$species[grepl("cod_PA",mod.diag.fixed$species)] <- "Cod"
 
 # This brings in the 5 fold cross validation results
-load(file = paste0(direct.proj,"Paper_2_SDMs/data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+if(direct.proj != 'github') load(file = paste0(direct.proj,"Paper_2_SDMs/data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
+
 # Here are the model covariate fits from the model
-load(file = paste0(direct.proj,"Paper_2_SDMs/data/All_model_covariate_fits.RData"))
+if(direct.proj != 'github') load(file = paste0(direct.proj,"Paper_2_SDMs/data/All_model_covariate_fits.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/All_model_covariate_fits.RData"))
+
 
 #theme_set(theme_map())
 
