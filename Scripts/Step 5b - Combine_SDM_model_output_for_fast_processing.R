@@ -127,6 +127,16 @@ for(i in 1:n.mods.10)
 load(paste0(direct.proj,"Results/INLA_st_5_output.RData"))
 direct.proj <- direct.tmp
 
+
+# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models. 
+# So here are the 3 best models for cod..
+
+full.mod.5s <- list(cod.winter = res$`cod_PA RV survey model.depth.sst_st_5`,
+               cod.spring = res$`cod_PA nmfs-spring survey model.depth.sst_st_5`,
+               cod.fall  = res$`cod_PA nmfs-fall survey model.depth.sst_st_5`)
+
+
+
 st.5.rf <- NULL
 run.names <- names(mod.output)
 n.mods <- length(run.names)
@@ -161,6 +171,9 @@ for(m in 1:n.mods)
   tf <- do.call("rbind",tmp.field)
   st.5.rf[[run.names[m]]] <- tf
 }
+
+
+
 
 
 mod.5s <- names(st.5.rf)
@@ -198,6 +211,14 @@ for(i in 1:n.mods.5)
 
 load(paste0(direct.proj,"Results/INLA_st_3_output.RData"))
 direct.proj <- direct.tmp
+
+
+# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models. 
+# So here are the 5 best models for cod..
+
+full.mod.3s <- list(yt.winter = res$`yt_PA RV survey model.depth.sed.sst_st_3`,
+               yt.spring = res$`yt_PA nmfs-spring survey model.depth.sed.sst_st_3`,
+               yt.fall  = res$`yt_PA nmfs-fall survey model.depth.sed.sst_st_3`)
 
 
 st.3.rf <- NULL
@@ -265,76 +286,101 @@ all.mod.sst <- c(st.10.sst,st.5.sst,st.3.sst)
 all.mod.chl <- c(st.10.chl,st.5.chl,st.3.chl)
 all.mod.fixed <- c(st.10.fixed,st.5.fixed,st.3.fixed)
 
+## Here we get teh full model results from the top 6 models toegether
+best.full.mods <- list(yt.mods = full.mod.3s,cod.mods = full.mod.5s)
+
 # Now I save all these seperately into relatively nice sized object for further analysis
-save(all.rand.fields, file = paste0(direct.proj,"/Results/All_random_fields.RData"))
+#save(all.rand.fields, file = paste0(direct.proj,"/Results/All_random_fields.RData"))
 # The smaller and more reasonable best random fields...
-save(select.rand.fields, file = paste0(direct.proj,"/Results/random_fields_from_top_models.RData"))
+#save(select.rand.fields, file = paste0(direct.proj,"/Results/random_fields_from_top_models.RData"))
 
 # All the model diagnostics
-save(all.mod.diag, file = paste0(direct.proj,"/Results/All_model_diagnostics.RData"))
+#save(all.mod.diag, file = paste0(direct.proj,"/Results/All_model_diagnostics.RData"))
 # All the model covariates, well the fixed effects, depth, chl, and sst.
-save(all.mod.depth,all.mod.sst,all.mod.chl,all.mod.fixed, file = paste0(direct.proj,"/Results/All_model_covariate_fits.RData"))
+#save(all.mod.depth,all.mod.sst,all.mod.chl,all.mod.fixed, file = paste0(direct.proj,"/Results/All_model_covariate_fits.RData"))
 
-# Now let's make some figures from these... all this silly loads above will have messed up our functions....
+#save(best.full.mods,file = paste0(direct.proj,"/Results/top_yt_cod_models_full_results.RData"))
 
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_coords.R",ssl.verifypeer = FALSE)))
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/combo_shp.R",ssl.verifypeer = FALSE)))
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
-#source("D:/Github/Offshore/Assessment_fns/DK/Maps/pectinid_projector_sf.R")
-eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
-eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/predict_fields.R",ssl.verifypeer = FALSE)))
+load(paste0(direct.proj,"/Results/top_yt_cod_models_full_results.RData"))
+# To get the posterior marginals
+pm.dep.prec <- as.data.frame(best.full.mods$cod.mods$cod.winter$marginals.hyperpar$`Precision for depth`)
+pm.sst.prec <- as.data.frame(best.full.mods$cod.mods$cod.winter$marginals.hyperpar$`Precision for sst`)
+pm.range.field <- as.data.frame(best.full.mods$cod.mods$cod.winter$marginals.hyperpar$`Range for w`)
+pm.sd.field <- as.data.frame(best.full.mods$cod.mods$cod.winter$marginals.hyperpar$`Stdev for w`)
 
-# Our basemap
-bp <- pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619)
-# The convex hull around our points...
-clp <- st_convex_hull(st_union(st_as_sf(loc.gf)))
-clp.poly <- st_as_sf(data.frame(X = c(508000,508000,900000,650000,600000,550000),
-                                Y=c(4540000,4350000,4674000,4674000,4661000,4622000),ID=1),coords = c("X","Y"),crs= 32619)
-# Now make this a polygon
-clp.poly <- st_cast(st_combine(clp.poly),"POLYGON")
-clp.pred <- st_intersection(clp,clp.poly)
-# The random field for model X
-fld <- select.rand.fields$`cod_PA nmfs-spring survey model.depth.sst st.10` 
-brk <- pretty(fld$r.field.response,n=10)
-range(fld$r.field.response)
-eras <- unique(fld$era)
-n.eras <- length(eras)
+# Here's what we really want to save, the hyper posteriors and the estimates
+# for each model, we'll wanna plot all of these and I think that's enough figures
+# For one lifetime.
+hyper.p.est <- best.full.mods$cod.mods$cod.winter$summary.hyperpar
+hyper.p.post <- best.full.mods$cod.mods$cod.winter$marginals.hyperpar
 
-for(i in 1:n.eras)
+# Now extract the hyperparameter estimates and posteriors from the model
+hyper.mod.est <- NULL
+hyper.mod.post <- NULL
+# Sorry me this is really lazy coding...
+for(i in 1:2)
 {
-  tmp.fld <- fld %>% dplyr::filter(era ==eras[i])
-  tst2 <- pecjector(gg.obj = bp,c_sys = 32619,area = "GOM",
-                    add_inla = list(field = tmp.fld$r.field.response,mesh = mesh.list,dims=c(50,50),clip = clp,
-                                    scale= list(breaks = brk,limits = range(brk),alpha = 0.8)))
+  tmp <- best.full.mods[[i]]
+  mods <- names(tmp)
+  for(j in 1:3)
+  {
+    tmp2 <- tmp[[j]]
+    model <- mods[j]
+    hyper.mod.est[[model]] <- tmp2$summary.hyperpar
+    hyper.mod.est[[model]]$model <- model
+    hyper.mod.est[[model]]$hyper <- rownames(hyper.mod.est[[model]])
+    if(i == 1) hyper.mod.est[[model]]$species <- "Yellowtail"
+    if(i == 2) hyper.mod.est[[model]]$species <- "Cod"
+    if(j == 1) hyper.mod.est[[model]]$survey <- "Winter"
+    if(j == 2) hyper.mod.est[[model]]$survey <- "Spring"
+    if(j == 3) hyper.mod.est[[model]]$survey <- "Fall"
+    
+    dep <- as.data.frame(tmp2$marginals.hyperpar$`Precision for depth`)
+    dep$x <- sqrt(1/dep$x)
+    dep$hyper <- "\u03C3² (Depth)"
+    sst <- as.data.frame(tmp2$marginals.hyperpar$`Precision for sst`)
+    sst$x <- sqrt(1/sst$x)
+    sst$hyper <-"\u03C3² (SST)"
+    range <- as.data.frame(tmp2$marginals.hyperpar$`Range for w`)
+    range$x <- range$x/1000
+    range$hyper <- "Range of Field (km²)"
+    sd <- as.data.frame(tmp2$marginals.hyperpar$`Stdev for w`)
+    sd$hyper <- "SD of Field"
+    tmp3 <- rbind(dep,sst,range,sd)
+    if(i == 1) tmp3$species <- "Yellowtail"
+    if(i == 2) tmp3$species <- "Cod"
+    if(j == 1) tmp3$survey <- "Winter"
+    if(j == 2) tmp3$survey <- "Spring"
+    if(j == 3) tmp3$survey <- "Fall"
+    hyper.mod.post[[model]] <- tmp3
+    hyper.mod.post[[model]]$model <- model
+  }
 }
 
-tst2 <- pecjector(gg.obj = bp,c_sys = 32619,area = "GOM",
-                  add_inla = list(field = tmp.fld$r.field.response,mesh = mesh.list,dims=c(50,50),clip = clp,
-                                  scale= list(breaks = brk,limits = range(brk),alpha = 0.8)))
+hyper.mod.post <- do.call('rbind',hyper.mod.post)
+hyper.mod.post$hyper <- factor(hyper.mod.post$hyper,levels = c("\u03C3² (Depth)",
+                                                               '\u03C3² (SST)',
+                                                               'Range of Field (km²)',
+                                                               'SD of Field'))
 
-mesh.list$crs <- CRS("+init=epsg:32619")
+hyper.mod.est <- do.call('rbind',hyper.mod.est)
+hyper.mod.est$survey <- factor(hyper.mod.est$survey, levels = c("Winter","Spring","Fall"))
+hyper.mod.post$survey<- factor(hyper.mod.post$survey, levels = c("Winter","Spring","Fall"))
 
-col <- addalpha(pals::viridis(101),1)
-if(length(brk) <= 6) hgt <- unit(0.5,'cm')
-if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.75,'cm')
-if(length(brk) > 12) hgt <- unit(2.5,'cm')
-lims <- range(brk)
+#save(hyper.mod.est,hyper.mod.post,file = paste0(direct.proj,"/Results/hyper_parameters.RData"))
+# The marginals for the random effects are for each RE (so each node in the w field, and each know in the RW)
+# So those are way too intense to show anywhere.  I'll take the intercept and the 
+# hyperparmeters.
 
-sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
-sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
 
-mesh.sf <- st_as_sf(data.frame(x = mesh.list$loc[,1], y = mesh.list$loc[,2]), coords = c('x','y'),crs = 32619)
 
-st_geometry(fld) <- rep(st_geometry(mesh.sf),n.eras)
-fld.clp <- st_intersection(fld,clp.pred)
-# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
-plt<- bp + geom_sf(data = fld.clp  ,aes(fill = r.field.response,colour=r.field.response))+
-  facet_wrap(~as.factor(era)) +
-  coord_sf(datum=32619) + sf + sc + #theme_map() +
-  theme(legend.key.height =hgt,text = element_text(size=22)) + theme_map()
 
-plt
+
+
+
+
+
+
 
 
 

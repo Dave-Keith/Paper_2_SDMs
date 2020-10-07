@@ -7,10 +7,8 @@ output:
   vertical_layout: fill
   # storyboard: true
 runtime: shiny
-#runtime: shiny_prerendered #  This is supposed to render all the plots right off the bat, so slower first time, but makes moving between pages really quick...
+#runtime: shiny_prerendered #  This is supposed to render all the plots right off the bat, so slower first time, but makes moving between pages really quick
 ---
-
-
 
 ```{r global, include=FALSE}
 
@@ -35,7 +33,9 @@ req.packages <- c("shiny",
                   "knitr",
                   "animation",
                   "RCurl",
-                  "boot")
+                  "boot",
+                  'concaveman',
+                  'ggthemes')
 # If you don't have the packages install them + give a heads up that you are
 new.packages <- req.packages[!(req.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0) 
@@ -101,6 +101,10 @@ levels(mod.diag.fields$species) <- c("Cod","Yellowtail")
 # Here are the fixed effects model comparisons, CPO's and model diagnostics in there
 if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
 if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/INLA_fixed_effect_model_diagnostics_field_5.RData"))
+# Really I"m pulling this is just to get the clp object...
+if(direct.proj != 'github') load(paste0(direct.proj,"Paper_2_SDMs/data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+
 
 # Gotta run in this order for this to work...
 mod.diag.fixed$model.id[grepl("depth_sst_sed",mod.diag.fixed$model.id)] <- "Dep + SST + Sed"
@@ -123,26 +127,94 @@ if(direct.proj != 'github') load(file = paste0(direct.proj,"Paper_2_SDMs/data/Al
 if(direct.proj == 'github') load(url("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/data/All_model_covariate_fits.RData"))
 
 
-#theme_set(theme_map())
+# Next get the EEZ so we can divide up Canada ad the US
+
+temp <- tempfile()
+      # Download this to the temp directory you created above
+download.file("https://raw.githubusercontent.com/Mar-scal/GIS_layers/master/EEZ/EEZ.zip", temp)
+# Figure out what this file was saved as
+temp2 <- tempfile()
+# Unzip it
+unzip(zipfile=temp, exdir=temp2)
+# Now read in the shapefile
+eez.all <- st_read(paste0(temp2, "/EEZ.shp"))
+rm(temp,temp2)
+clp.eez <- st_as_sf(data.frame(X = c(-70,-70,-62.2,-62.2),Y = c(39,44,44,39)),coords = c("X","Y"),crs = 4326)
+clp.eez <- st_cast(st_combine(clp.eez),"POLYGON")
+eez.all <- eez.all %>% st_transform(4326)
+tmp <- st_intersection(eez.all,clp.eez)
+eez.can <- concaveman(tmp)
+eez.can <- eez.can %>% st_transform(32619)
+
+# The prediction clip area
+clp.poly <- st_as_sf(data.frame(X = c(508000,508000,900000,650000,600000,550000),
+                                          Y=c(4540000,4350000,4674000,4674000,4661000,4622000),ID=1),coords = c("X","Y"),crs= 32619)
+# Now make this a polygon
+clp.poly <- st_cast(st_combine(clp.poly),"POLYGON")
+clp.pred <- st_intersection(clp,clp.poly)
+
 
 # for testing purposes...
 #input <- data.frame(prob = 0.8, species = "cod", survey = "RV_survey")
-bp <- pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05) + theme_map()
-bp2 <- pecjector(gg.obj = bp, repo = 'github',area = list(x=c(380000,740000), y = c(4500000,4750000),crs = 32619),c_sys = 32619,plot=F) + theme_map()
+bp <- pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(land = 'grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.05) + theme_map()
 
-``` 
+bp2 <- pecjector(c_sys = 32619,area = list(x=c(580000,780000), y = c(4530000,4680000),crs = 32619),
+                     add_layer = list(eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F,
+                     add_custom = list(obj = clp.poly,fill=NA)) + theme_map()
 
-Model Output
-===================================== 
+bp.pred <- pecjector(c_sys = 32619,area = list(x=c(380000,7800000), y = c(4400000,4750000),crs = 32619),
+                     add_layer = list(land = 'grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F,
+                     add_custom = list(obj = clp.pred,fill=NA)) + theme_map()
+
+# Bring in the closure locations so we can add those to the spatial figures and get the subsetting done with...
+
+temp <- tempfile()
+# Download this to there88
+download.file("https://raw.githubusercontent.com/Mar-scal/GIS_layers/master/other_boundaries/other_boundaries.zip", temp)
+# Figure out what this file was saved as
+temp2 <- tempfile()
+# Unzip it
+unzip(zipfile=temp, exdir=temp2)
+# Now grab the individual shape files I want.
+CA1 <- st_read(dsn = paste0(temp2,"/CA1.shp"))
+CA1 <- st_transform(CA1,crs = 32619)
+CA2 <- st_read(dsn = paste0(temp2,"/CA2.shp"))
+CA2 <- st_transform(CA2,crs = 32619)
+yt.closures <- st_read(dsn =paste0(temp2,"/yt_closures.shp"))
+yt.closures <- st_transform(yt.closures,crs = 32619)
+cod.closures <- st_read(dsn =paste0(temp2,"/cod_closures.shp"))
+cod.closures <- st_transform(cod.closures,crs = 32619)
+rm(temp,temp2)
+# Now grab the coordinates for the survey boundaries for GBa and gbb, inside of the survey_boundaries zip.
+temp <- tempfile()
+# Download this to there
+download.file("https://raw.githubusercontent.com/Mar-scal/GIS_layers/master/survey_boundaries/survey_boundaries.zip", temp)
+# Figure out what this file was saved as
+temp2 <- tempfile()
+# Unzip it
+unzip(zipfile=temp, exdir=temp2)
+# And we get GBa and GBb from there
+gba.surv <- st_read(dsn = paste0(temp2,"/GBa.shp"))
+gbb.surv <- st_read(dsn = paste0(temp2,"/GBb.shp"))
+# Make an 'all of gb' sf object
+gb.surv <- st_union(gba.surv,gbb.surv)
+# This removes holes, still have one small artifact out to the east, but it matters little...
+gb.surv <- nngeo::st_remove_holes(gb.surv)
+gb.surv <- st_transform(gb.surv,crs= 32619)
+scal.tot.area <- st_area(gb.surv) %>% set_units("km^2")
+# Put all the closures together so we can easily plot them.
+all.closures <- c(st_geometry(CA1),st_geometry(CA2),st_geometry(yt.closures),st_geometry(cod.closures))
 
 
-Column {data-width=250 .sidebar}
------------------------------------------------------------------------
+```
 
+# Model Output
+
+## Column {.sidebar data-width="250"}
 
 ```{r}
 
-awesomeCheckboxGroup(inputId  = "species",
+awesomeRadio(inputId  = "species",
              label = "Which Species",
              choices = c("Atlantic cod" = "cod_PA",
                         "Yellowtail flounder" = "yt_PA"),
@@ -152,7 +224,7 @@ awesomeRadio("survey","Which Survey",
             choices = c("NMFS Spring" = "nmfs-spring",
                         "NMFS Fall" = "nmfs-fall",
                         "DFO RV" = "RV"),
-            selected = "RV survey")
+            selected = "RV")
 
 awesomeRadio("eras","Length of Eras",
             choices = c("10 years" = "st.10",
@@ -178,19 +250,22 @@ awesomeRadio("field","Estimator",
 actionButton("go_out",label="",icon =icon("redo"))
 ```
 
-Column {.tabset}
------------------------------------------------------------------------
+## Column {.tabset}
 
 ### Depth and SST effects
 
-- From the models the primary covariates that were retained were SST, Depth, and for Yellowtail a weak effect of Sediment type
-- These are the estimates for the Field mean (intercept), SST, Depth, and Sediment Type for the respective models.  
-  - Note that not all combinations of models exist
-- The **Estimators**
-  - *Response* is the effects estimate + intercept on the probability scale
-  - *Raw* is the model output, this is the 'effects' size on logit scale
-  - *Link* is the effect size + intercept on the logit scale
-  - *Standard Deviation* is on the *Raw* model estimates
+-   From the models the primary covariates that were retained were SST, Depth, and for Yellowtail a weak effect of Sediment type
+
+-   These are the estimates for the Field mean (intercept), SST, Depth, and Sediment Type for the respective models.
+
+    -   Note that not all combinations of models exist
+
+-   The **Estimators**
+
+    -   *Response* is the effects estimate + intercept on the probability scale
+    -   *Raw* is the model output, this is the 'effects' size on logit scale
+    -   *Link* is the effect size + intercept on the logit scale
+    -   *Standard Deviation* is on the *Raw* model estimates
 
 ```{r}
 renderPlot({
@@ -250,7 +325,7 @@ renderPlot({
               int.res$UCI[2:nrow(int.res)] <- (int.res$mean[1] + int.res$`0.975quant`[2:nrow(int.res)])
             }
             
-            #int.res <- int.res[-1,] # Get rid of the 'intercept' row as it's basically meaningless for what we're doing here
+            #int.res <- int.res[-1,] # Get rid of the 'intercept' row as it's basically meaningless for what we're doing here=
           } # if(nrow(int.res) >1)
          # Get the correct field names
           names(int.res)[names(int.res) == input$field] <- "res"
@@ -347,10 +422,6 @@ renderPlot({
   input$go_out
   isolate({
           clp <- st_convex_hull(st_union(st_as_sf(loc.gf)))
-          clp.poly <- st_as_sf(data.frame(X = c(508000,508000,900000,650000,600000,550000),
-                                          Y=c(4540000,4350000,4674000,4674000,4661000,4622000),ID=1),coords = c("X","Y"),crs= 32619)
-          # Now make this a polygon
-          clp.poly <- st_cast(st_combine(clp.poly),"POLYGON")
           clp.pred <- st_intersection(clp,clp.poly)
           # The random field for model X
           if(input$eras == 'st.10') pick.mod <- paste(input$species,input$survey,"survey",input$model,input$eras)
@@ -360,6 +431,7 @@ renderPlot({
           pck.field <- paste0("r.field.",input$field)
           names(fld)[names(fld) == pck.field] <- "response"
     
+          
           if(input$survey == "RV" & input$eras == 'st.10') fld$era <- fld$era + min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_10)) -1
           if(input$survey == "RV" & input$eras == 'st_5') fld$era <- fld$era +  min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_5)) -1
           if(input$survey == "RV" & input$eras == 'st_3') fld$era <- fld$era +  min(dat.final %>% dplyr::filter(survey == input$survey) %>% dplyr::select(years_3)) -1
@@ -382,6 +454,10 @@ renderPlot({
             
               fld$yrs[fld$era==n] <- yrs
           }
+         # Convert the mesh to an sf object, DK has a better way about this now....     
+          mesh.sf <- st_as_sf(data.frame(x = mesh.gf$loc[,1], y = mesh.gf$loc[,2]), coords = c('x','y'),crs = 32619)
+          st_geometry(fld) <- rep(st_geometry(mesh.sf),n.eras)
+          fld <- st_intersection(fld,clp.pred)
           
           brk <- pretty(fld$response)
           range(fld$response)
@@ -398,28 +474,22 @@ renderPlot({
           sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Field Estimate")
           sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Field Estimate")
           
-          mesh.sf <- st_as_sf(data.frame(x = mesh.gf$loc[,1], y = mesh.gf$loc[,2]), coords = c('x','y'),crs = 32619)
           
-          st_geometry(fld) <- rep(st_geometry(mesh.sf),n.eras)
-          fld.clp <- st_intersection(fld,clp.pred)
+      
           # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
-          plt<- bp + geom_sf(data = fld.clp  ,aes(fill = response,colour=response))+
+          plt<- bp + geom_sf(data = fld  ,aes(fill = response,colour=response))+
             facet_wrap(~yrs) +
             coord_sf(datum=32619) + sf + sc  + #theme_map() +
-            theme_map() + theme(legend.key.height =hgt,text = element_text(size=22)) 
+            theme_map() + theme(legend.key.height =hgt,text = element_text(size=22),legend.position = 'right') 
           plt
           })
 })
 
 ```
 
+# Model Diagnostics
 
-Model Diagnostics
-===================================== 
-
-
-Column {data-width=250 .sidebar}
------------------------------------------------------------------------
+## Column {.sidebar data-width="250"}
 
 ```{r}
 
@@ -448,13 +518,11 @@ actionButton("go_val",label="",icon =icon("redo"))
 
 ```
 
+## Column {.tabset}
 
-Column {.tabset}
------------------------------------------------------------------------
+### Diagnostics
 
-### Diagnostics 
-
-**The left column contains the results comparing the 3 random fields (Intercept only models), the right column compares different covarite models**
+**The left column contains the results comparing the 3 random fields (Intercept only models), the right column compares different covariate models with using the best random field model. *Atlantic Cod* model results shown are from the *Winter* survey, *Yellowtail Flounder* model results are from the *Spring* survey.**
 
 ```{r}
 
@@ -476,8 +544,8 @@ renderPlot({
                                                             facet_wrap(~species,scales = 'free_x',nrow=2) + theme_bw() +  
                                                             theme(text = element_text(size=18))
      fixed.plt <- ggplot(diag.fixed) + geom_point(aes(x =response,y=model),size=2) + xlab(ax.lab)+ ylab("") + 
-                                       geom_vline(aes(xintercept = min_2), col = 'red',size=1.25) +
-                                       geom_vline(aes(xintercept = min_10), col = 'blue',size=1.25) + 
+                                       geom_vline(aes(xintercept = min_2), col = 'blue',size=1.25) +
+                                       geom_vline(aes(xintercept = min_10), col = 'red',size=1.25) + 
                                        facet_wrap(~species,scales = 'free',nrow=2) + theme_bw() +  
                                        theme(text = element_text(size=18))
      d.plt <- plot_grid(field.plt,fixed.plt,NULL,NULL,nrow=2)
@@ -524,20 +592,25 @@ renderPlot({
   d.plt})
 })
 ```
-  
-### Validation 
+
+### Validation
 
 <!-- #### Header -->
-**These results come from a 5 fold cross validation of the data **
 
-1. For each model a randomly chosen 20% of the data were partitioned into 1 of 5 *folds*
-2. The model was run 5 times with a different *fold* used as a validation each time
-3. Given the computational demands of this process *only* models with the 5 year fields were used.
-4. The results of the *prediction* folds are compared to the model *residuals* which contain 80% of the data
-5. For all statistics calculated 
-    - There is no evidence of any systematic bias in the validation results
-    - As expected the validation results are more variable
-    - The differences between the 3 models compared were negligible for both *cod* and *yellowtail*
+**These results come from a 5 fold cross validation of the data**
+
+1.  For each model a randomly chosen 20% of the data were partitioned into 1 of 5 *folds*
+2.  The model was run 5 times with a different *fold* used as a validation each time
+3.  Given the computational demands of this process 
+    - *Atlantic Cod* results are from the *Winter* model
+    - *Yellowtail Flounder* results are from the *Spring* model
+    - The 5 year random field models were used for both species
+4.  The results of the *prediction* folds are compared to the model *residuals* which contain 80% of the data
+5.  For all statistics calculated
+    -   There is no evidence of any systematic bias in the validation results
+    -   As expected the validation results are more variable
+    -   The differences between the 3 models compared were negligible for *Atlantic Cod* 
+        - The *Yellowtail Flounder* Intercept model has slightly better predictive skill than the models with covariates
 
 ```{r}
 
@@ -554,14 +627,11 @@ v.plt
 })
 ```
 
-
 <!-- Next up are the Spatial results -->
 
-Spatial Results
-=====================================
+# Spatial Results
 
-Column {data-width=250 .sidebar}
------------------------------------------------------------------------
+## Column {.sidebar data-width="250"}
 
 ```{r}
 
@@ -587,7 +657,7 @@ res <- reactive({
             eras <- factor.2.number(unique(res$years_5))
             # So the key is the last thing is the dataframe we want...
             st_geometry(res) <- st_geometry(rep(mesh.grid,n.eras))
-            data.frame(res)
+            #data.frame(res)
             for(n in min(eras):max(eras))
             {
               yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(res$survey)) %>% summarise(min = min(year)),3,4),"-",
@@ -618,6 +688,8 @@ res <- reactive({
                   loc.text = c(600000,4440000) # I might make this an input, but we'll see...
                   area.era$X <- loc.text[1]
                   area.era$Y <- loc.text[2]
+                  area.era$eras <- as.numeric(factor(area.era$yrs, labels =1:length(unique(area.era$yrs))))
+
                   area.era <- st_as_sf(area.era,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
                   n.eras <- length(unique(res()$years_5))
                   lab <- NA
@@ -626,13 +698,27 @@ res <- reactive({
                   area.era
               })
 
+area.can.vs.us <- reactive({
+                    pf.can <- st_intersection(res(),eez.can)
+                    pf.can$country <- "GB - Canada"
+                    pf.us <- st_difference(res(),eez.can)
+                    pf.us$country <- "GB - U.S."
+                    pf.can$area <-  pf.can %>% st_area() %>% set_units("km^2") %>% as.numeric()
+                    pf.us$area <-  pf.us %>% st_area() %>% set_units("km^2") %>% as.numeric()
+                    pf.area <- bind_rows(pf.us, pf.can)
+                    area.can.vs.us <- pf.area  %>% group_by(country,yrs) %>% 
+                        summarize(tot.area = as.numeric(sum(area)))
+                    area.can.vs.us$tot.area <- as.numeric(area.can.vs.us$tot.area)  
+                    area.can.vs.us$eras <- as.numeric(factor(area.can.vs.us$yrs, labels =1:length(unique(area.can.vs.us$yrs))))
+                    area.can.vs.us
+                  })
+ 
 
 ```
 
-Column {.tabset}
------------------------------------------------------------------------
+## Column {.tabset}
 
-### Area
+### Figure
 
 ```{r}
 
@@ -658,7 +744,7 @@ renderPlot({
       facet_wrap(~yrs) +
       coord_sf(datum=32619) + sf + sc + #theme_map() +
       geom_sf_text(data = area.era() , aes(label = lab),parse=T) +
-      theme(legend.key.height =hgt,text = element_text(size=22)) +
+      theme(legend.key.height =hgt,text = element_text(size=22),legend.position = 'right') +
       #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
       #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
       # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
@@ -714,7 +800,7 @@ renderImage(deleteFile=F,{
             vid <- bp + geom_sf(data = clp  ,aes(fill = pred,colour=pred))+
                         coord_sf(datum=32619) + sf + sc  +
                         geom_sf_text(data = area.t , aes(label = lab),parse=T,color="black") +
-                        theme(legend.key.height =hgt,text = element_text(size=22)) +# theme_map()+
+                        theme(legend.key.height =hgt,text = element_text(size=22),legend.position = 'right') +# theme_map()+
                         #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
                         #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
                         # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
@@ -722,10 +808,10 @@ renderImage(deleteFile=F,{
             print(vid)
           }
           #}
-          }, movie.name = paste0(direct.proj,'Paper_2_SDMs/test.gif'),ani.width = p.width, ani.height = p.height)
+          }, movie.name = paste0(getwd(),'/test.gif'),ani.width = p.width, ani.height = p.height)
 
          # Here's how you bring in an external image
-         list(src = paste0(direct.proj,"Paper_2_SDMs/test.gif"),
+         list(src = paste0(getwd(),"/test.gif"),
          contentType = 'image/gif')
          #ui <- fluidPage(plotOutput(output$vid))
          }) # end isolate
@@ -734,7 +820,6 @@ renderImage(deleteFile=F,{
 
 
 ```
-
 
 ### Center of Gravity
 
@@ -754,135 +839,503 @@ renderPlot({
 })
 ```
 
+### Time Series
 
+```{r}
 
-<!-- Next up are the figures for model prediction and Validation-->
+renderPlot({
+  input$go# Tell this to update when I hit the action button. 
+  isolate({
+   area.ts <-  ggplot(data = area.era()) +  geom_line(aes(x=eras, y = as.numeric(tot.area)),size=1.5) + 
+                                            geom_point(aes(x=eras, y = as.numeric(tot.area)),size=2.5,color="blue") +
+                                            ylab("Area (km²)") + xlab("") +# Get squared with Alt + 0178.. bam
+                                            scale_y_continuous(breaks = seq(0,40000,1500), limits = c(0,NA)) + 
+                                            scale_x_continuous(breaks = unique(area.era()$eras),labels = unique(area.era()$yrs)) + 
+                                            theme_few() + theme(text = element_text(size=22),
+                                                                axis.text = element_text(size=14)) + 
+                                            labs(subtitle = "Georges Bank") + 
+                                            theme(plot.subtitle = element_text(hjust = 0.5,element_text(size = 18)),
+                                                  axis.text.x = element_text(angle = -45, vjust = 0.5),
+                                                  axis.text = element_text(size=14))
+   
+   plt.area.can.vs.us <- ggplot(area.can.vs.us()) + geom_line(aes(x=eras, y = tot.area),lwd=1.5) + facet_wrap(~ country) + 
+                                            geom_point(aes(x=eras, y = tot.area),size=2.5,color="blue") +
+                                            scale_y_continuous(breaks = seq(0,40000,1500), limits = c(0,NA)) + 
+                                            scale_x_continuous(breaks = unique(area.can.vs.us()$eras),labels = unique(area.can.vs.us()$yrs)) +
+                                            xlab("")  + ylab("") +  theme_few() + 
+                                            theme(text = element_text(size=26),
+                                                  axis.text.x = element_text(angle = -45, vjust = 0.5, size=14),
+                                                  axis.text = element_text(size=14))
+   # Sadly something appears to be wrong with plotly and shiny right now so just ggplots for now...
+   ts.plts <- v.plt <- plot_grid(area.ts,plt.area.can.vs.us,nrow=1,rel_widths = c(1,2))
+   ts.plts
+   })
+   #shiny::renderUI({plotly::plotlyOutput("p_env", height = "100%")})
 
-Spawning Predictions
-=====================================
+})
+```
 
+<!-- Next up are the figures that are related to the closures -->
 
-Column {data-width=250 .sidebar}
------------------------------------------------------------------------
+# Closure Time Series
+
+## Row {.sidebar data-width="250"}
+
 
 ```{r}
 
 sliderInput("prob_pred", label = "Encounter Probability",
             min = 0, max = 1, value = 0.8, step = 0.05)
 radioButtons("species_pred","Which Species",
-            choices = c("Atlantic cod" = "cod",
-                        "Yellowtail flounder" = "yt"))
-checkboxGroupInput('year_surv', "Survey Results",choices = 2017:2019)
-#checkboxGroupInput('pred_field', "Prediction Field",choices = c("3 year","5 year", "10 year"))
-
+             choices = c("Atlantic cod" = "cod",
+                         "Yellowtail flounder" = "yt"))
+radioButtons("closure","Closure",
+             choices = c("None selected" = "none",
+                         "Closed Area I" = "CA1",
+                         "Closed Area II" = "CA2",
+                         "Cod Closure" = "cod",
+                         "Yellowtail Closure" = "yt",
+                         "All closures" = "all"))
 actionButton("go_pred",label="",icon =icon("redo"))
+#input <- list(species_pred = 'cod',year_pred = 1996:2000,prob_pred = 0.5)
+
+area.era.all <- reactive({
+  # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
+  input$go_pred
+  isolate({
+    if(input$species_pred == 'cod') preds.all <- pred.dat[[paste0(input$species_pred,"_PA RV_survey",sep="")]]
+    if(input$species_pred == 'yt') preds.all <- pred.dat[[paste0(input$species_pred,"_PA nmfs-spring_survey",sep="")]]
+    preds.all <- preds.all[,-which(names(preds.all) =='year')]
+    n.eras <- length(unique(preds.all$years_5))
+    eras <- factor.2.number(unique(preds.all$years_5))
+    # So the key is the last thing is the dataframe we want...
+    for(n in min(eras):max(eras))
+    {
+      yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(min = min(year)),3,4),"-",
+                    substr(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(max = max(year)),3,4))
+      if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+      preds.all$yrs[preds.all$years_5==n] <- yrs
+      preds.all$first_year[preds.all$years_5==n] <- as.numeric(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(min = min(year)))
+    }
+        # So the key is the last thing is the dataframe we want...
+    st_geometry(preds.all) <- rep(st_geometry(mesh.grid),n.eras)
+    all.years <- data.frame(yrs = unique(preds.all$yrs))
+    preds.all <- preds.all %>% filter(pred >= input$prob_pred)
+    preds.all$area <- preds.all %>% st_area() %>% set_units("km^2")
+    first.years <- unique(preds.all$first_year)
+
+    
+    if(input$closure == 'none') 
+    {
+      # Get the US area to compare with the Closures
+      area.us <- st_difference(preds.all,eez.can)
+      area.us$area <- area.us %>% st_area() %>% set_units("km^2")
+      area.era.us <- area.us  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.us <- left_join(all.years,area.era.us,by="yrs")
+      area.era.us$loc <- "GB - U.S."
+      cls.area <- st_intersection(preds.all,gb.surv)
+      cls.area$area <- cls.area %>% st_area() %>% set_units("km^2")
+      area.era.all <- cls.area  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.all <- left_join(all.years,area.era.all,by="yrs")
+      area.era.all$loc <- "COSF"
+      area.era.all <- bind_rows(area.era.all,area.era.us)
+      area.era.all$eras <- as.numeric(factor(area.era.all$yrs, labels =1:length(unique(area.era.all$yrs))))
+    }
+     
+    if(input$closure == "CA1")  
+    {
+      # Get the US area to compare with the Closures
+      area.us <- st_difference(preds.all,eez.can)
+      area.us$area <- area.us %>% st_area() %>% set_units("km^2")
+      area.era.us <- area.us  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.us <- left_join(all.years,area.era.us,by="yrs")
+      area.era.us$loc <- "GB - U.S."
+      cls.area <- st_intersection(preds.all,CA1)
+      cls.area$area <- cls.area %>% st_area() %>% set_units("km^2")
+      area.era.all <- cls.area  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.all <- left_join(all.years,area.era.all,by="yrs")
+      area.era.all$loc <- "CA I"
+      area.era.all <- bind_rows(area.era.all,area.era.us)
+      area.era.all$eras <- as.numeric(factor(area.era.all$yrs, labels =1:length(unique(area.era.all$yrs))))
+    }
+       
+    if(input$closure == "CA2")  
+    {  
+      # Get the US area to compare with the Closures
+      area.us <- st_difference(preds.all,eez.can)
+      area.us$area <- area.us %>% st_area() %>% set_units("km^2")
+      area.era.us <- area.us  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.us <- left_join(all.years,area.era.us,by="yrs")
+      area.era.us$loc <- "GB - U.S."
+      cls.area <- st_intersection(preds.all,CA2)
+      cls.area$area <- cls.area %>% st_area() %>% set_units("km^2")
+      area.era.all <- cls.area  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.era.all <- left_join(all.years,area.era.all,by="yrs")
+      area.era.all$loc <- "CA II"
+      area.era.all <- bind_rows(area.era.all,area.era.us)
+      area.era.all$eras <- as.numeric(factor(area.era.all$yrs, labels =1:length(unique(area.era.all$yrs))))
+    }
+      ## SOMETHING WRONG HERE, I ALSO NEED TO MAKE THIS A YEAR BY YEAR ESTIMATE FOR COD AND YT, BUT STILL SOMETHING IN WRONG WITH THAT INTERSECTION.
+    if(input$closure == "cod")  
+    {
+      close.years <- data.frame(year = yt.closures$year)
+      area.cosf <- st_intersection(preds.all,gb.surv)
+      area.cosf$area <- area.cosf %>% st_area() %>% set_units("km^2")
+      area.cosf <- area.cosf  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.cosf <- left_join(all.years,area.cosf,by="yrs")
+      area.cosf$loc <- "COSF"
+      # Now we have the problem of the COSF being in eras but the closures being in years since they vary in size.
+      area.cosf$year <- as.numeric(substr(area.cosf$yrs,1,4))
+      # This won't work for years in which the random field isn't 5 years, i.e. the first year in the yellowtail
+      area.cosf <- area.cosf %>% dplyr::filter(yrs != "1970-71")
+      tmp <- NULL
+      for(i in 0:4) tmp[[i+1]] <- area.cosf %>% dplyr::mutate(year = year + i)
+      area.cosf <- do.call('rbind',tmp)
+      area.cosf <- area.cosf[order(area.cosf$year),]
+      tmp <- NULL
+      for(i in 1:nrow(cod.closures))
+      {
+      year.to.pick <- first.years[max(which(first.years <= cod.closures$year[i]))]
+      tmp[[i]] <- st_intersection(preds.all %>% dplyr::filter(first_year == year.to.pick),cod.closures %>% dplyr::filter(year ==cod.closures$year[i]))
+      }
+      cls.area <- do.call('rbind',tmp)
+      cls.area$area <- cls.area %>% st_area() %>% set_units("km^2")
+      area.era.all <- cls.area  %>% group_by(year) %>% summarize(tot.area = sum(area))
+      area.era.all <- left_join(close.years,area.era.all,by="year")
+      area.era.all$loc <- "Cod Closure"
+      area.era.all <- bind_rows(area.era.all,area.cosf)
+    }
+       
+    if(input$closure == "yt")   
+    {
+      close.years <- data.frame(year = yt.closures$year)
+      area.cosf <- st_intersection(preds.all,gb.surv)
+      area.cosf$area <- area.cosf %>% st_area() %>% set_units("km^2")
+      area.cosf <- area.cosf  %>% group_by(yrs) %>% summarize(tot.area = sum(area))
+      area.cosf <- left_join(all.years,area.cosf,by="yrs")
+      area.cosf$loc <- "COSF"
+      # Now we have the problem of the COSF being in eras but the closures being in years since they vary in size.
+      area.cosf$year <- as.numeric(substr(area.cosf$yrs,1,4))
+      # This won't work for years in which the random field isn't 5 years, i.e. the first year in the yellowtail
+      area.cosf <- area.cosf %>% dplyr::filter(yrs != "1970-71")
+      tmp <- NULL
+      for(i in 0:4) tmp[[i+1]] <- area.cosf %>% dplyr::mutate(year = year + i)
+      area.cosf <- do.call('rbind',tmp)
+      area.cosf <- area.cosf[order(area.cosf$year),]
+      # Now if we have 0's 
+      
+      tmp <- NULL
+      for(i in 1:nrow(yt.closures))
+      {
+      year.to.pick <- first.years[max(which(first.years <= yt.closures$year[i]))]
+      tmp[[i]] <- st_intersection(preds.all %>% dplyr::filter(first_year == year.to.pick),yt.closures %>% dplyr::filter(year ==yt.closures$year[i]))
+      }
+      cls.area <- do.call('rbind',tmp)
+      cls.area$area <- cls.area %>% st_area() %>% set_units("km^2")
+      area.era.all <- cls.area  %>% group_by(year) %>% summarize(tot.area = sum(area))
+      area.era.all <- left_join(close.years,area.era.all,by="year")
+      area.era.all$loc <- "Yellowtail Closure"
+      area.era.all <- bind_rows(area.era.all,area.cosf)
+      area.era.all$loc <- factor(area.era.all$loc,levels = c("Yellowtail Closure","COSF")) # Keep order of levels the same for figure.
+    }
+     
+    if(input$closure != "all") area.era.all$tot.area[is.na(area.era.all$tot.area)] <-0  
+    if(input$closure == "all") area.era.all <- NULL
+     # Make any NA's = 0.
+     
+     area.era.all
+     })
+})
+                       
+
+```
+
+## Row {data-width=500}
+
+### Closures Time Series 
+
+```{r}
+
+renderPlot({
+  input$go_pred# Tell this to update when I hit the action button.
+  isolate({
+     if(input$closure == 'none') area.title <- "Total core area on GB-US and in COSF"
+     if(input$closure == 'CA1') area.title <- "Total core area on GB-US and in CA I"
+     if(input$closure == 'CA2') area.title <- "Total core area on GB-US and in CA II"
+     if(input$closure == 'cod') area.title <- "Total core area in COSF domain and CC "
+     if(input$closure == 'yt') area.title <- "Total core area in COSF domain and YC"
+     if(input$closure == 'all')
+     {
+       area.ts <- ggplot() + geom_text(aes(x=1,y=1,label = 
+       "The 'All closures' option doesn't do anything 
+        so here's a kitten instead."),size=8,color='skyblue') +
+                            theme_nothing()
+     }
+
+     if(input$closure %in% c("CA1","CA2",'none'))
+     {
+      area.ts <-  ggplot(data = area.era.all()) +  geom_line(aes(x=eras, y = as.numeric(tot.area),color = loc),size=1.5) +
+                                            geom_point(aes(x=eras, y = as.numeric(tot.area),color = loc),size=2.5) +
+                                            ylab("Area (km²)") + xlab("") +# Get squared with Alt + 0178.. bam
+                                            scale_y_continuous(breaks = seq(0,40000,1500), limits = c(0,NA)) +
+                                            scale_x_continuous(breaks = unique(area.era.all()$eras),labels = unique(area.era.all()$yrs)) +
+                                            theme_few() + theme(text = element_text(size=22),
+                                                                axis.text = element_text(size=14)) +
+                                            labs(subtitle = area.title) +
+                                            theme(plot.subtitle = element_text(hjust = 0.5,element_text(size = 18)),
+                                                  axis.text.x = element_text(angle = -45, vjust = 0.5),
+                                                  axis.text = element_text(size=14),
+                                                  legend.title = element_blank(),legend.position = 'bottom')
+     }
+     
+     if(input$closure %in% c("cod","yt"))
+     {
+      area.ts <-  ggplot(data = area.era.all()) +  geom_line(aes(x=year, y = as.numeric(tot.area),color = loc),size=1.5) +
+                                            geom_point(aes(x=year, y = as.numeric(tot.area),color = loc),size=2.5) +
+                                            ylab("Area (km²)") + xlab("") +# Get squared with Alt + 0178.. bam
+                                            scale_y_continuous(breaks = seq(0,4000,250), limits = c(0,NA)) +
+                                            scale_x_continuous(breaks = seq(min(area.era.all()$year),max(area.era.all()$year),by=5)) +
+                                            theme_few() + theme(text = element_text(size=22),
+                                                                axis.text = element_text(size=14)) +
+                                            labs(subtitle = area.title) +
+                                            theme(plot.subtitle = element_text(hjust = 0.5,element_text(size = 18)),
+                                                  legend.title = element_blank(),legend.position = 'bottom')
+     }
+   # Sadly something appears to be wrong with plotly and shiny right now so just ggplots for now...
+   area.ts
+   })
+})
+
+```
+
+## Row {data-width=250}
+###
+
+```{r}
+renderImage(deleteFile=F,{
+     input$go_pred# Tell this to update when I hit the action button.
+     isolate({
+
+              if(input$closure == "all")
+              {
+              list(src = paste0(getwd(),"/kitten.png"),
+              contentType = 'image/png')
+              } else
+                list(src = paste0(getwd(),"/blank.png"),
+                contentType = 'image/png')
+     })
+})
+
+   #shiny::renderUI({plotly::plotlyOutput("p_env", height = "100%")})
+```
+
+
+# Closures Spatial
+
+## Column {.sidebar data-width="250"}
+
+
+```{r}
+
+sliderInput("prob_pred_2", label = "Encounter Probability",
+            min = 0, max = 1, value = 0.8, step = 0.05)
+radioButtons("species_pred_2","Which Species",
+             choices = c("Atlantic cod" = "cod",
+                         "Yellowtail flounder" = "yt"))
+radioButtons("closure_2","Closure",
+             choices = c("None selected" = "none",
+                         "Closed Area I" = "CA1",
+                         "Closed Area II" = "CA2",
+                         "Cod Closure" = "cod",
+                         "Yellowtail Closure" = "yt",
+                         "All closures" = "all"))
+
+sliderInput('year_pred', "Survey Observations",min = 1972,max=2019,value = 1987:2016,step=1,dragRange = T)
+checkboxInput('show_pts', "Show survey points",value = T)
+#checkboxGroupInput('pred_field', "Prediction Field",choices = c("3 year","5 year", "10 year"))
+actionButton("go_pred_2",label="",icon =icon("redo"))
+
+preds.all <- reactive({
+  # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
+  input$go_pred_2
+  isolate({
+    if(input$species_pred_2 == 'cod') preds.all <- pred.dat[[paste0(input$species_pred_2,"_PA RV_survey",sep="")]]
+    if(input$species_pred_2 == 'yt') preds.all <- pred.dat[[paste0(input$species_pred_2,"_PA nmfs-spring_survey",sep="")]]
+    preds.all <- preds.all[,-which(names(preds.all) =='year')]
+    n.eras <- length(unique(preds.all$years_5))
+    eras <- factor.2.number(unique(preds.all$years_5))
+    # So the key is the last thing is the dataframe we want...
+    for(n in min(eras):max(eras))
+    {
+      yrs <- paste0(substr(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(min = min(year)),3,4),"-",
+                    substr(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(max = max(year)),3,4))
+      if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+      preds.all$yrs[preds.all$years_5==n] <- yrs
+      preds.all$first_year[preds.all$years_5==n] <- as.numeric(dat.final %>% filter(years_5 == n, survey == unique(preds.all$survey)) %>% summarise(min = min(year)))
+    }
+        # So the key is the last thing is the dataframe we want...
+    st_geometry(preds.all) <- rep(st_geometry(mesh.grid),n.eras)
+    preds.all <- preds.all %>% filter(pred >= input$prob_pred_2)
+    preds.all$area <- preds.all %>% st_area() %>% set_units("km^2")
+    preds.all
+  })# end isolate
+})
 
 preds <- reactive({
-          # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
-  
-            input$go_pred
-            isolate({
-            if(input$species_pred == 'cod') preds <- pred.dat[[paste0(input$species_pred,"_PA RV_survey",sep="")]]
-            if(input$species_pred == 'yt') preds <- pred.dat[[paste0(input$species_pred,"_PA nmfs-spring_survey",sep="")]]
-            n.eras <- 1
-            eras <- max(factor.2.number(unique(preds$years_5)))
-            preds <- preds %>% filter(years_5 == eras)
-            # So the key is the last thing is the dataframe we want...
-            st_geometry(preds) <- st_geometry(rep(mesh.grid,n.eras))
-            yrs <- paste0(substr(dat.final %>% filter(years_5 == eras, survey == unique(preds$survey)) %>% summarise(min = min(year)),3,4),"-",
-                            substr(dat.final %>% filter(years_5 == eras, survey == unique(preds$survey)) %>% summarise(max = max(year)),3,4))
-            preds$yrs <- yrs
-            # # So calculating area is smart using that set units, though they are all idenitcal...
-            preds$area <- preds %>% st_area() %>% set_units("km^2")
-            preds <- preds %>% filter(pred >= input$prob_pred)
-            preds
-            # # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
-            })# end isolate
-        })
+  # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
+  input$go_pred_2
+  isolate({
+    preds <- preds.all()
+    # So now we pick the era based on the first year of the pred_year chosen above because we need to pick something
+    min.year <- min(input$year_pred)
+    first.years <- unique(preds$first_year)
+    year.to.pick <- first.years[max(which(first.years <= min.year))]
+    preds <- preds %>% filter(first_year == year.to.pick)
+    # So the key is the last thing is the dataframe we want...
+    #st_geometry(preds) <- st_geometry(mesh.grid)
+    # # So calculating area is smart using that set units, though they are all idenitcal...
+    #preds$area <- preds %>% st_area() %>% set_units("km^2")
+    preds
+    # # Calculate the center of gravity Here's a nice way to return an object with multiple ouptuts
+  })# end isolate
+})
+
+
+                       
 
 area.era.pred <- reactive({
-                  area.era <- data.frame(preds())  %>% summarize(tot.area = sum(area))
-                  #area.era
-                  loc.text = c(600000,4440000) # I might make this an input, but we'll see...
-                  area.era$X <- loc.text[1]
-                  area.era$Y <- loc.text[2]
-                  area.era <- st_as_sf(area.era,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
-                  area.era$lab <- paste0("Area==~",round(area.era$tot.area,digits=0),"*km^2")
-                  area.era
-              })
+  area.era.pred <- data.frame(preds())  %>% summarize(tot.area = sum(area))
+  #area.era
+  loc.text = c(600000,4440000) # I might make this an input, but we'll see...
+  area.era.pred$X <- loc.text[1]
+  area.era.pred$Y <- loc.text[2]
+  area.era.pred <- st_as_sf(area.era.pred,crs=st_crs(mesh.grid),coords = c("X","Y"), remove=F)
+  area.era.pred$lab <- paste0("Area==~",round(area.era.pred$tot.area,digits=0),"*~km^2")
+  area.era.pred
+})
 
 
 
 ```
 
-Column {.tabset}
------------------------------------------------------------------------
-### Survey Observations
+
+## Column {.tabset}
+
+### Spatial Predictions
 
 ```{r}
 
 renderPlot({
-
-          input$go_pred
-          isolate({
-          if(input$species_pred == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
-          if(input$species_pred == 'cod') {spec <- "Cod"; surv <- "RV survey"}
-          col <- addalpha(pals::viridis(101),1)
-          col.pts <- c(col[1],col[101])
-          brk <- seq(input$prob_pred,1,by=0.05)
-          if(length(brk) < 6) hgt <- unit(0.5,'cm')
-          if(length(brk) >= 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
-          if(length(brk) > 12) hgt <- unit(2,'cm')
-          lims <- range(brk)
-          col <- col[((100*input$prob_pred)+1):101]
-          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
-          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
-          predict.pts <- all.resids %>% filter(year %in% input$year_surv, species == paste0(input$species_pred,"_PA"))
-          sfp <- scale_colour_manual(values = col.pts,name = "Response")
+  
+  input$go_pred_2
+  isolate({
+    if(input$species_pred_2 == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
+    if(input$species_pred_2 == 'cod') {spec <- "Cod"; surv <- "RV survey"}
+    col <- addalpha(pals::viridis(101),1)
+    col.pts <- c(col[1],col[101])
+    brk <- seq(input$prob_pred_2,1,by=0.05)
+    if(length(brk) < 6) hgt <- unit(0.5,'cm')
+    if(length(brk) >= 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
+    if(length(brk) > 12) hgt <- unit(2,'cm')
+    lims <- range(brk)
+    col <- col[((100*input$prob_pred_2)+1):101]
+    sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+    sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+    predict.pts <- all.resids %>% filter(year %in% min(input$year_pred):max(input$year_pred), species == paste0(input$species_pred_2,"_PA"))
+    sfp <- scale_colour_manual(values = col.pts,name = "Response")
     #
     # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
-    plt.pred <- bp2 + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
-       geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T) +
-       geom_sf(data=predict.pts,aes(response,fill = response),color='white',shape=21,size=4) +
-       theme(legend.key.height =hgt,text = element_text(size=22)) +
-       ggtitle(paste("Encounter probability \u2265",input$prob_pred, spec,surv))+
-      coord_sf(x=c(380000,780000), y = c(4200000,4750000))
+    plt.pred <- bp.pred + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
+      geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T, size=8)  + theme_map() + 
+      theme(legend.key.height =hgt,text = element_text(size=22),legend.position = "right") +
+      ggtitle(paste("Encounter probability \u2265",input$prob_pred_2, spec,surv))+
+      labs(caption = paste("Note the prediction field era shown is",preds()$yrs[1]))+
+      coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+    #coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+    if(!is.null(input$closure_2))
+    {
+      if(input$closure_2 == "CA1") plt.pred <- plt.pred + geom_sf(data = CA1,fill=NA,color = "blue",size=1.5) + coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      if(input$closure_2 == "CA2") plt.pred <- plt.pred + geom_sf(data = CA2,fill=NA,color = "grey50",size=1.5)  +coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      if(input$closure_2 == "cod") 
+      {
+        if(min(input$year_pred) < 2006) c.closures <- cod.closures
+        if(min(input$year_pred) >= 2006) c.closures <- cod.closures %>% filter(year %in% min(input$year_pred):max(input$year_pred))
+        plt.pred <- plt.pred + geom_sf(data = c.closures,fill=NA, color = 'black',size=1.5) +
+                               coord_sf(x=c(380000,780000), y = c(4400000,4750000)) 
+      }
+      if(input$closure_2 == "yt") 
+      {
+        if(min(input$year_pred) < 2007) y.closures <- yt.closures
+        if(min(input$year_pred) >= 2007) y.closures <- yt.closures %>% filter(year %in% min(input$year_pred):max(input$year_pred))
+        plt.pred <- plt.pred + geom_sf(data = y.closures,fill=NA,color= 'firebrick',size=1.5) +
+                               coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      }
+      if(input$closure_2 == "all") plt.pred <- plt.pred + geom_sf(data = all.closures,fill=NA,
+                                                                color = c("blue","grey50",rep("firebrick",14),rep('black',15)),size=1.5) +
+                                                        coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+    }
+    if(input$show_pts == T) plt.pred <- plt.pred + geom_sf(data=predict.pts,aes(response,fill = response),color='white',shape=21,size=4,alpha=0.2) +
+      coord_sf(x=c(380000,780000), y = c(4400000,4750000)) # Adding in the years messes up the plot if you don't add in the coord_sf
     plt.pred
-          }) # end isolate
+  }) # end isolate
 })
 ```
 
-### Prediction Residuals
+### Spatial Residuals 
 
 ```{r}
 
 renderPlot({
-          input$go_pred
-          isolate({
-          if(input$species_pred == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
-          if(input$species_pred == 'cod') {spec <- "Cod"; surv <- "RV survey"}
-          col <- addalpha(pals::viridis(101),1)
-          col2 <- addalpha(pals::coolwarm(200),1)
-          brk <- seq(input$prob_pred,1,by=0.1)
-          #if(length(brk) <= 6) hgt <- unit(0.5,'cm')
-          #if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
-          hgt <- unit(1.25,'cm')
-          lims <- range(brk)
-          col <- col[((100*input$prob_pred)+1):101]
-          sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
-          sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
-          sfp <- scale_fill_gradientn(colours = col2, limits=c(-1,1),breaks=seq(-1,1,by=0.2),name="Prediction error")
-          predict.pts <- all.resids %>% filter(year %in% input$year_surv, species == paste0(input$species_pred,"_PA"))
+  input$go_pred_2
+  isolate({
+    if(input$species_pred_2 == 'yt') {spec <- "Yellowtail"; surv <- "NMFS spring"}
+    if(input$species_pred_2 == 'cod') {spec <- "Cod"; surv <- "RV survey"}
+    col <- addalpha(pals::viridis(101),1)
+    col2 <- addalpha(pals::coolwarm(200),0.2)
+    brk <- seq(input$prob_pred_2,1,by=0.05)
+    #if(length(brk) <= 6) hgt <- unit(0.5,'cm')
+    #if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(1.5,'cm')
+    hgt <- unit(1.25,'cm')
+    lims <- range(brk)
+    col <- col[((100*input$prob_pred_2)+1):101]
+    sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+    sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name="Probability")
+    sfp <- scale_fill_gradientn(colours = col2, limits=c(-1,1),breaks=seq(-1,1,by=0.2),name="Prediction error")
+    predict.pts <- all.resids %>% filter(year %in% min(input$year_pred):max(input$year_pred), species == paste0(input$species_pred_2,"_PA"))
     #
     # # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
-    plt.pred <- bp2 + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
-      #geom_sf_text(data = area.era()[nrow(area.era()),] , aes(label = lab),parse=T) +
-        new_scale("fill") +  sfp +
-      geom_sf(data=predict.pts,aes(fitted,fill = resid),color='white',shape=21,size=4) +
-      theme(legend.key.height =hgt,text = element_text(size=22)) +
-      ggtitle(paste("Encounter probability \u2265",input$prob_pred, spec,surv))+
-     coord_sf(x=c(380000,780000), y = c(4200000,4750000))
+    plt.pred <- bp.pred + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
+      geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T,size=8) +
+      new_scale("fill") +  sfp +
+      theme(legend.key.height =hgt,text = element_text(size=22),legend.position = "right") +
+      ggtitle(paste("Encounter probability \u2265",input$prob_pred_2, spec,surv))+
+      labs(caption = paste("Note the prediction field era shown is",preds()$yrs[1]))+
+      coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+    if(!is.null(input$closure_2))
+    {
+      if(input$closure_2 == "CA1") plt.pred <- plt.pred + geom_sf(data = CA1,fill=NA,color = "blue",size=1.5) +coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      if(input$closure_2 == "CA2") plt.pred <- plt.pred + geom_sf(data = CA2,fill=NA,color = "grey50",size=1.5) +coord_sf(x=c(380000,780000), y = c(4400000,4750000)) 
+      if(input$closure_2 == "cod") 
+      {
+        if(min(input$year_pred) < 2006) c.closures <- cod.closures
+        if(min(input$year_pred) >= 2006) c.closures <- cod.closures %>% filter(year %in% min(input$year_pred):max(input$year_pred))
+        plt.pred <- plt.pred + geom_sf(data = c.closures,fill=NA, color = 'black',size=1.5)  +coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      }
+      if(input$closure_2 == "yt") 
+      {
+        if(min(input$year_pred) < 2007)y.closures <- yt.closures
+        if(min(input$year_pred) >= 2007) y.closures <- yt.closures %>% filter(year %in% min(input$year_pred):max(input$year_pred))
+        plt.pred <- plt.pred + geom_sf(data = y.closures,fill=NA,color= 'firebrick',size=1.5) +coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+      }
+      if(input$closure_2 == "all") plt.pred <- plt.pred + geom_sf(data = all.closures,fill=NA,
+                                                                color = c("blue","grey50",rep("firebrick",14),rep('black',15)),size=1.5) +  
+                                                        coord_sf(x=c(380000,780000), y = c(4400000,4750000))
+    }
+    if(input$show_pts == T) plt.pred <- plt.pred + geom_sf(data=predict.pts,aes(fitted,fill = resid),color='white',shape=21,size=4,alpha=0.2) +
+      coord_sf(x=c(380000,780000), y = c(4400000,4750000)) # Adding in the years messes up the plot if you don't add in the coord_sf
+    
     plt.pred
-          }) # end isolate
+  }) # end isolate
 })
 ```
+
