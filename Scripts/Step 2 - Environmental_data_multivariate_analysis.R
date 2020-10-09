@@ -204,6 +204,9 @@ obs.scal.4pca <-na.omit(obs.scal[,c(non.enviro.scal.obs.dat,enviro.obs.dat)])
 fish.gf.4pca <- na.omit(fish.gf[,c(non.enviro.gf.dat,enviro.gf.dat)])
 
 
+# Frig I updated this and forgot to save it, results unchanged but I made a nice output with good names for variables...
+# See "D:\Github\Closure-Framework\data\PCA_results.RData for those objects..."
+
 # Now I think we are ready to do some PCA'ing, first up the surveys
 nmfs.spr.pca.mod <- prcomp(nmfs.spr.4pca[enviro.survey.dat],scale=T)
 summary(nmfs.spr.pca.mod)

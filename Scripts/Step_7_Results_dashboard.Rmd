@@ -35,7 +35,8 @@ req.packages <- c("shiny",
                   "RCurl",
                   "boot",
                   'concaveman',
-                  'ggthemes')
+                  'ggthemes',
+                  "nngeo")
 # If you don't have the packages install them + give a heads up that you are
 new.packages <- req.packages[!(req.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0) 
@@ -493,8 +494,8 @@ renderPlot({
 
 ```{r}
 
-# sliderInput("prob", label = "Encounter Probability",
-#             min = 0, max = 1, value = 0.8, step = 0.05)
+# sliderInput("prob", label = "Occurrence Probability",
+#             min = 0, max = 1, value = 0.75, step = 0.05)
 # radioButtons("species","Which Species", 
 #             choices = c("Atlantic cod" = "cod",
 #                         "Yellowtail flounder" = "yt"))
@@ -635,8 +636,8 @@ v.plt
 
 ```{r}
 
-sliderInput("prob", label = "Encounter Probability",
-            min = 0, max = 1, value = 0.8, step = 0.05)
+sliderInput("prob", label = "Occurrence Probability",
+            min = 0, max = 1, value = 0.75, step = 0.05)
 radioButtons("species_sm","Which Species",
             choices = c("Atlantic cod" = "cod",
                         "Yellowtail flounder" = "yt"))
@@ -748,7 +749,7 @@ renderPlot({
       #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
       #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
       # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
-      ggtitle(paste0("Encounter probability \u2265 ",input$prob))
+      ggtitle(paste0("Occurrence probability \u2265 ",input$prob))
 
     plt
           }) # end isolate
@@ -804,7 +805,7 @@ renderImage(deleteFile=F,{
                         #geom_text(data=area.t,aes(label =as.expression(bquote(Area== .(tot.area)~km^2)),parse=T) ) +
                         #annotate('text',x=area.era$X,y=area.era$Y, label=tst,parse=T) +
                         # Note for the >= symbol to show up correctly in a pdf use cairo_pdf rather than just pdf! Just trying to avoid using an expression here..
-                        ggtitle(paste0("Encounter probability ",eras[p]))
+                        ggtitle(paste0("Occurrence probability ",eras[p]))
             print(vid)
           }
           #}
@@ -884,8 +885,8 @@ renderPlot({
 
 ```{r}
 
-sliderInput("prob_pred", label = "Encounter Probability",
-            min = 0, max = 1, value = 0.8, step = 0.05)
+sliderInput("prob_pred", label = "Occurrence Probability",
+            min = 0, max = 1, value = 0.75, step = 0.05)
 radioButtons("species_pred","Which Species",
              choices = c("Atlantic cod" = "cod",
                          "Yellowtail flounder" = "yt"))
@@ -1137,8 +1138,8 @@ renderImage(deleteFile=F,{
 
 ```{r}
 
-sliderInput("prob_pred_2", label = "Encounter Probability",
-            min = 0, max = 1, value = 0.8, step = 0.05)
+sliderInput("prob_pred_2", label = "Occurrence Probability",
+            min = 0, max = 1, value = 0.75, step = 0.05)
 radioButtons("species_pred_2","Which Species",
              choices = c("Atlantic cod" = "cod",
                          "Yellowtail flounder" = "yt"))
@@ -1246,9 +1247,11 @@ renderPlot({
     #
     # Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
     plt.pred <- bp.pred + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
-      geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T, size=8)  + theme_map() + 
-      theme(legend.key.height =hgt,text = element_text(size=22),legend.position = "right") +
-      ggtitle(paste("Encounter probability \u2265",input$prob_pred_2, spec,surv))+
+      geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T, size=8)  + 
+      geom_sf(data=gbb.surv,fill=NA,linetype = 'dashed',size=0.5) + 
+      geom_sf(data=gb.surv,fill=NA,linetype = 'dashed',size=0.5) + 
+      theme_map() + theme(legend.key.height =hgt,text = element_text(size=22),legend.position = "right") +
+      ggtitle(paste("Occurrence probability \u2265",input$prob_pred_2, spec,surv))+
       labs(caption = paste("Note the prediction field era shown is",preds()$yrs[1]))+
       coord_sf(x=c(380000,780000), y = c(4400000,4750000))
     #coord_sf(x=c(380000,780000), y = c(4400000,4750000))
@@ -1307,8 +1310,11 @@ renderPlot({
     plt.pred <- bp.pred + geom_sf(data = preds() ,aes(fill = pred,colour=pred))+ sf + sc +
       geom_sf_text(data = area.era.pred() , aes(label = lab),parse=T,size=8) +
       new_scale("fill") +  sfp +
+      geom_sf(data=gbb.surv,fill=NA,linetype = 'dashed',size=0.5) + 
+      geom_sf(data=gb.surv,fill=NA,linetype = 'dashed',size=0.5) + 
+
       theme(legend.key.height =hgt,text = element_text(size=22),legend.position = "right") +
-      ggtitle(paste("Encounter probability \u2265",input$prob_pred_2, spec,surv))+
+      ggtitle(paste("Occurrence probability \u2265",input$prob_pred_2, spec,surv))+
       labs(caption = paste("Note the prediction field era shown is",preds()$yrs[1]))+
       coord_sf(x=c(380000,780000), y = c(4400000,4750000))
     if(!is.null(input$closure_2))

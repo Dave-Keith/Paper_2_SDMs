@@ -45,7 +45,7 @@ eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_f
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/predict_fields.R",ssl.verifypeer = FALSE)))
 
 
-############# Here we grab the random fields, the depth, sst, and 
+############# Here we grab the random fields, the depth, sst, and
 direct.tmp <- direct.proj
 load(paste0(direct.proj,"Results/INLA_st_output.RData"))
 direct.proj <- direct.tmp
@@ -77,7 +77,7 @@ for(m in 1:n.mods)
     # Note that the summar.fixed works because our covariates are treated as random walks which makes them random effects so our only fixed term
     # is always just our intercept.
     tmp.field[[p]] <- data.frame(r.field.raw = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]],
-                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]] + res[[run.name]]$summary.fixed$mean[1], 
+                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]] + res[[run.name]]$summary.fixed$mean[1],
                                  r.field.response = inv.logit(rand.field[[run.name]]$mean+ res[[run.name]]$summary.fixed$mean[1])[w.ind$w.repl == eras[p]],
                                  r.field.sd = rand.field[[run.name]]$sd[w.ind$w.repl == eras[p]],
                                  era = eras[p])
@@ -92,13 +92,13 @@ best.10s <- mod.10s[mod.10s %in% c("cod_PA nmfs-fall survey model.int st.10",
                                 "cod_PA nmfs-spring survey model.int st.10",
                                 "cod_PA RV survey model.int st.10",
                                 "yt_PA RV survey model.int st.10",
-                                "yt_PA nmfs-spring survey model.int st.10",            
+                                "yt_PA nmfs-spring survey model.int st.10",
                                 "yt_PA nmfs-fall survey model.int st.10",
                                 "cod_PA nmfs-fall survey model.depth.sst st.10" ,
                                 "cod_PA nmfs-spring survey model.depth.sst st.10",
-                                "cod_PA RV survey model.depth.sst st.10",             
+                                "cod_PA RV survey model.depth.sst st.10",
                                 "yt_PA RV survey model.depth.sst st.10",
-                                "yt_PA nmfs-spring survey model.depth.sst st.10",     
+                                "yt_PA nmfs-spring survey model.depth.sst st.10",
                                 "yt_PA nmfs-fall survey model.depth.sst st.10")]
 best.10.rf <- NULL
 for(i in 1:length(best.10s)) best.10.rf[[best.10s[i]]] <- st.10.rf[[best.10s[i]]]
@@ -128,7 +128,7 @@ load(paste0(direct.proj,"Results/INLA_st_5_output.RData"))
 direct.proj <- direct.tmp
 
 
-# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models. 
+# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models.
 # So here are the 3 best models for cod..
 
 full.mod.5s <- list(cod.winter = res$`cod_PA RV survey model.depth.sst_st_5`,
@@ -163,7 +163,7 @@ for(m in 1:n.mods)
     # Note that the summar.fixed works because our covariates are treated as random walks which makes them random effects so our only fixed term
     # is always just our intercept.
     tmp.field[[p]] <- data.frame(r.field.raw = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]],
-                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]] + res[[run.name]]$summary.fixed$mean[1], 
+                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.repl == eras[p]] + res[[run.name]]$summary.fixed$mean[1],
                                  r.field.response = inv.logit(rand.field[[run.name]]$mean+ res[[run.name]]$summary.fixed$mean[1])[w.ind$w.repl == eras[p]],
                                  r.field.sd = rand.field[[run.name]]$sd[w.ind$w.repl == eras[p]],
                                  era = eras[p])
@@ -182,13 +182,13 @@ best.5s <- mod.5s[mod.5s %in% c("cod_PA nmfs-fall survey model.int_st_5",
                                 "cod_PA nmfs-fall survey model.depth.sst_st_5" ,
                                 "cod_PA nmfs-spring survey model.depth.sst_st_5",
                                 "cod_PA nmfs-spring survey model.int_st_5",
-                                "cod_PA RV survey model.depth.sst_st_5",             
+                                "cod_PA RV survey model.depth.sst_st_5",
                                 "cod_PA RV survey model.int_st_5",
                                 "yt_PA RV survey model.int_st_5",
                                 "yt_PA RV survey model.depth.sst_st_5",
-                                "yt_PA nmfs-spring survey model.depth.sst_st_5",     
-                                "yt_PA nmfs-spring survey model.int_st_5",            
-                                "yt_PA nmfs-fall survey model.depth.sst_st_5",       
+                                "yt_PA nmfs-spring survey model.depth.sst_st_5",
+                                "yt_PA nmfs-spring survey model.int_st_5",
+                                "yt_PA nmfs-fall survey model.depth.sst_st_5",
                                 "yt_PA nmfs-fall survey model.int_st_5")]
 best.5.rf <- NULL
 for(i in 1:length(best.5s)) best.5.rf[[best.5s[i]]] <- st.5.rf[[best.5s[i]]]
@@ -213,7 +213,7 @@ load(paste0(direct.proj,"Results/INLA_st_3_output.RData"))
 direct.proj <- direct.tmp
 
 
-# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models. 
+# So I want to pull out the correlation distances, posteriors and fun stuff like that from the models.
 # So here are the 5 best models for cod..
 
 full.mod.3s <- list(yt.winter = res$`yt_PA RV survey model.depth.sed.sst_st_3`,
@@ -246,7 +246,7 @@ for(m in 1:n.mods)
     # Note that the summar.fixed works because our covariates are treated as random walks which makes them random effects so our only fixed term
     # is always just our intercept.
     tmp.field[[p]] <- data.frame(r.field.raw = rand.field[[run.name]]$mean[w.ind$w.group == eras[p]],
-                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.group== eras[p]] + res[[run.name]]$summary.fixed$mean[1], 
+                                 r.field.link = rand.field[[run.name]]$mean[w.ind$w.group== eras[p]] + res[[run.name]]$summary.fixed$mean[1],
                                  r.field.response = inv.logit(rand.field[[run.name]]$mean+ res[[run.name]]$summary.fixed$mean[1])[w.ind$w.group == eras[p]],
                                  r.field.sd = rand.field[[run.name]]$sd[w.ind$w.group == eras[p]],
                                  era = eras[p])
@@ -273,7 +273,7 @@ for(i in 1:n.mods.3)
 
 
 all.rand.fields <- c(st.10.rf,st.5.rf,st.3.rf) # Random fields
-# Subset this to the most interesting random fields 
+# Subset this to the most interesting random fields
 select.rand.fields <- c(best.10.rf,best.5.rf,st.3.rf)
 
 
@@ -281,7 +281,7 @@ select.rand.fields <- c(best.10.rf,best.5.rf,st.3.rf)
 
 all.mod.diag <- c(st.10.diag,st.5.diag,st.3.diag) # Model diagnostics
 # The best model covariates...
-all.mod.depth <- c(st.10.depth,st.5.depth,st.3.depth) 
+all.mod.depth <- c(st.10.depth,st.5.depth,st.3.depth)
 all.mod.sst <- c(st.10.sst,st.5.sst,st.3.sst)
 all.mod.chl <- c(st.10.chl,st.5.chl,st.3.chl)
 all.mod.fixed <- c(st.10.fixed,st.5.fixed,st.3.fixed)
@@ -334,16 +334,16 @@ for(i in 1:2)
     if(j == 1) hyper.mod.est[[model]]$survey <- "Winter"
     if(j == 2) hyper.mod.est[[model]]$survey <- "Spring"
     if(j == 3) hyper.mod.est[[model]]$survey <- "Fall"
-    
+
     dep <- as.data.frame(tmp2$marginals.hyperpar$`Precision for depth`)
     dep$x <- sqrt(1/dep$x)
-    dep$hyper <- "\u03C3² (Depth)"
+    dep$hyper <- "\u03C3 (Dep)"
     sst <- as.data.frame(tmp2$marginals.hyperpar$`Precision for sst`)
     sst$x <- sqrt(1/sst$x)
-    sst$hyper <-"\u03C3² (SST)"
+    sst$hyper <-"\u03C3 (SST)"
     range <- as.data.frame(tmp2$marginals.hyperpar$`Range for w`)
     range$x <- range$x/1000
-    range$hyper <- "Range of Field (km²)"
+    range$hyper <- "Range of Field (km)"
     sd <- as.data.frame(tmp2$marginals.hyperpar$`Stdev for w`)
     sd$hyper <- "SD of Field"
     tmp3 <- rbind(dep,sst,range,sd)
@@ -358,9 +358,9 @@ for(i in 1:2)
 }
 
 hyper.mod.post <- do.call('rbind',hyper.mod.post)
-hyper.mod.post$hyper <- factor(hyper.mod.post$hyper,levels = c("\u03C3² (Depth)",
-                                                               '\u03C3² (SST)',
-                                                               'Range of Field (km²)',
+hyper.mod.post$hyper <- factor(hyper.mod.post$hyper,levels = c("\u03C3 (Dep)",
+                                                               '\u03C3 (SST)',
+                                                               'Range of Field (km)',
                                                                'SD of Field'))
 
 hyper.mod.est <- do.call('rbind',hyper.mod.est)
@@ -369,7 +369,7 @@ hyper.mod.post$survey<- factor(hyper.mod.post$survey, levels = c("Winter","Sprin
 
 #save(hyper.mod.est,hyper.mod.post,file = paste0(direct.proj,"/Results/hyper_parameters.RData"))
 # The marginals for the random effects are for each RE (so each node in the w field, and each know in the RW)
-# So those are way too intense to show anywhere.  I'll take the intercept and the 
+# So those are way too intense to show anywhere.  I'll take the intercept and the
 # hyperparmeters.
 
 
