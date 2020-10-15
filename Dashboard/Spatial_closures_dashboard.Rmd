@@ -882,6 +882,7 @@ renderPlot({
 
 ## Row {.sidebar data-width="250"}
 
+**These results show the time series of core area during spawning on GB in the U.S. and within Canada using the Canadian Offshore Scallop Fishery (COSF) survey domain. *Atlantic Cod* model results shown are from the *Winter* survey, *Yellowtail Flounder* model results are from the *Spring* survey, both stocks use the 5-year random field model for prediction.**
 
 ```{r}
 
