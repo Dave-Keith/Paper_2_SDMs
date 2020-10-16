@@ -205,7 +205,7 @@ gb.surv <- st_transform(gb.surv,crs= 32619)
 scal.tot.area <- st_area(gb.surv) %>% set_units("km^2")
 # Put all the closures together so we can easily plot them.
 all.closures <- c(st_geometry(CA1),st_geometry(CA2),st_geometry(yt.closures),st_geometry(cod.closures))
-
+rm(temp,temp2)
 
 ```
 
@@ -1117,14 +1117,21 @@ renderPlot({
 renderImage(deleteFile=F,{
      input$go_pred# Tell this to update when I hit the action button.
      isolate({
-
               if(input$closure == "all")
               {
-              list(src = paste0(getwd(),"/kitten.png"),
-              contentType = 'image/png')
-              } else
-                list(src = paste0(getwd(),"/blank.png"),
+                tmp <- tempfile()
+                # Download this to the temp directory you created above
+                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/kitten.png", tmp)
+                list(src = paste0(tmp, "\\kitten.png"),
                 contentType = 'image/png')
+              } else
+                {
+                tmp <- tempfile()
+                # Download this to the temp directory you created above
+                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/blank.png", tmp)
+                list(src = paste0(tmp, "/blank.png"),
+                contentType = 'image/png')
+                } # end else
      })
 })
 
