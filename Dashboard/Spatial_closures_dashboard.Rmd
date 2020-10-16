@@ -254,7 +254,7 @@ actionButton("go_out",label="",icon =icon("redo"))
 
 ## Column {.tabset}
 
-### Depth and SST effects
+### Covariates
 
 -   From the models the primary covariates that were retained were SST, Depth, and for Yellowtail a weak effect of Sediment type
 
@@ -1245,7 +1245,7 @@ area.era.pred <- reactive({
 ### Spatial Predictions
 
 -   These results show the spatial *core area* predictions during spawning on GB.
-    - The points are actual presence/absence results for each survey tow 
+    - The points are actual presence (yellow) and absence (grey) results for each survey tow 
     - *Atlantic Cod* model results shown are from the *Winter* survey, 
     - *Yellowtail Flounder* model results are from the *Spring* survey, 
     - Both stocks use the 5-year random field model for prediction.

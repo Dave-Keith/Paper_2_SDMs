@@ -389,7 +389,7 @@ summary {
 
 <div id="dashboard-installation-and-running" class="section level1">
 <h1>Dashboard Installation and Running</h1>
-<p>To run the dashboard you will must install R and RStudio. The dashboard has been developed using R Version 4.0.2 and requires an active internet connection to run.</p>
+<p>To run the dashboard you must install R and we recommend installing RStudio. The dashboard has been developed using R Version 4.0.2 and requires an active internet connection to run.</p>
 <ol style="list-style-type: decimal">
 <li>Download R from <a href="https://mirror.its.dal.ca/cran/" class="uri">https://mirror.its.dal.ca/cran/</a>
 <ul>
@@ -413,14 +413,14 @@ summary {
 <li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd</a></li>
 <li>For users familiar with Github you can simply clone/download/fork this repo
 <ul>
-<li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd</a></li>
+<li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/</a></li>
 </ul></li>
 </ul></li>
 <li>Open RStudio and then open downloaded Spatial_closures_dashboard.Rmd file
 <ul>
 <li>File -&gt; Open</li>
 </ul></li>
-<li>Press “Run Document” in the menu bar
+<li>Press “Run Document” button in the menu bar
 <ul>
 <li>Note that this step will automatically install a number of the required R packages for this dashboard to run</li>
 </ul></li>
@@ -429,6 +429,139 @@ summary {
 <li>Changing settings within the dashboard can take up to a minute to load when the random fields are updating.</li>
 </ul></li>
 </ol>
+</div>
+<div id="using-the-interactive-dashboard" class="section level1">
+<h1>Using the Interactive Dashboard</h1>
+<p>There are several components to the dashboard, a brief overview of the layout</p>
+<div id="model-output" class="section level3">
+<h3>Model Output</h3>
+<p><strong>This includes a comprehensive overview of the covariate and random field results for the main models along with the Intercept only model.</strong></p>
+<ul>
+<li>The user can select results from various combinations of
+<ul>
+<li>Stock (cod vs yellowtail)</li>
+<li>Season (Winter, Spring, or Fall)</li>
+<li>Era length (3,5, or 10)</li>
+<li>Covariates (Intercept, SST + Dep, or SST + Dep + Sed)</li>
+<li>Estimator (Response, Link, Raw, or Standard Deviation)
+<ul>
+<li>Response is the most intuitive as it gives the effect size on the proportional scale</li>
+</ul></li>
+</ul></li>
+<li>There are two tabs available
+<ul>
+<li><em>Covariates</em> tab includes Intercept, SST, Depth, and Sediment type results as appropriate for the chosen model</li>
+<li>The <em>Random fields</em> tab shows the results for each of the random fields used in the model</li>
+</ul></li>
+</ul>
+</div>
+<div id="model-diagnostics" class="section level3">
+<h3>Model Diagnostics</h3>
+<p><strong>This includes an overview of Model selection results for a subset of the models and shows the results for the 5-fold validation</strong></p>
+<ul>
+<li>There are two tabs available
+<ul>
+<li><em>Diagnostics</em> provides the model diagnostic results for a subset of models
+<ul>
+<li>Statistics include <em>WAIC</em>, <em>CPO</em>, <em>DIC</em>, <em>RMSE</em>, and <em>MAE</em> <em>Validation</em> provides the model validation results for each stock</li>
+<li>Validation Statistics include <em>Raw Error</em>, <em>RMSE</em>, <em>MAE</em>, and <em>SD</em></li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+<div id="spatial-results" class="section level3">
+<h3>Spatial Results</h3>
+<p><strong>This shows the Occurrence Probability (<em>OP</em>) results using the prediction grid for each stock using the Dep + SST 5-year random field models</strong></p>
+<ul>
+<li>The user can change
+<ul>
+<li><em>Occurrence Probability</em> all <em>OP</em> values &gt; than the maximum value on the slider are used for the figures</li>
+<li><em>Stock</em> controls the stock of interest</li>
+<li><em>Season</em> controls the season used</li>
+</ul></li>
+<li>There are four tabs available
+<ul>
+<li><em>Figure</em> shows a mutli-panel figure of the predictions for each era</li>
+<li><em>Video</em> is the same information but shown in a looped video</li>
+<li><em>Center of Gravity</em> shows the COG by era and includes a measure of uncertainty around the COG (+-3 SE)</li>
+<li><em>Time Series</em> compares the change in area above the selected <em>OP</em> threshold (i.e. <em>core area</em>) across eras for all of Georges Bank, in Canadian waters, and in U.S. waters on GB</li>
+</ul></li>
+</ul>
+</div>
+<div id="closure-time-series" class="section level3">
+<h3>Closure Time Series</h3>
+<p><strong>This compares the change in area above the selected OP threshold (i.e. <em>core area</em>) across eras during spawning for several area subsets including the various closures on GB</strong></p>
+<ul>
+<li>The user can change
+<ul>
+<li><em>Occurrence Probability</em> all <em>OP</em> values &gt; than the maximum value on the slider are used for the figures</li>
+<li><em>Stock</em> controls the stock of interest
+<ul>
+<li><em>Atlantic Cod</em> shows the results from the Winter (1987-2016)</li>
+<li><em>Yellowtail Flounder</em> show the results from the Spring (1987-2016)</li>
+</ul></li>
+<li><em>Closure</em> controls the closure comparison
+<ul>
+<li><em>None selected</em> compares the trends in <em>core area</em> in U.S. waters with the Canadian Offshore Scallop Fishery (COSF) <em>core area</em> trend</li>
+<li><em>Closed Area I</em> compares the trends in <em>core area</em> in U.S. waters with the CA I <em>core area</em> trend</li>
+<li><em>Closed Area II</em> compares the trends in <em>core area</em> in U.S. waters with the CA II <em>core area</em> trend</li>
+<li><em>Cod Closure</em> compares the trends in <em>core area</em> in COSF with the Cod Closure <em>core area</em> trend</li>
+<li><em>Yellowtail Closure</em> compares the trends in <em>core area</em> in COSF with the Yellowtail Closure <em>core area</em> trend</li>
+<li><em>All closures</em> does nothing</li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+<div id="closures-spatial" class="section level3">
+<h3>Closures Spatial</h3>
+<p><strong>This shows the prediction field for a given era with the spatial overlap of the <em>core area</em> for the various closures and the survey data points</strong></p>
+<ul>
+<li>The user can change
+<ul>
+<li><em>Occurrence Probability</em> all <em>OP</em> values &gt; than the maximum value on the slider are used for the figures</li>
+<li><em>Stock</em> controls the stock of interest
+<ul>
+<li><em>Atlantic Cod</em> shows the results from the Winter (1987-2016)</li>
+<li><em>Yellowtail Flounder</em> show the results from the Spring (1972-2016)</li>
+</ul></li>
+<li><em>Closure</em> controls which closures to overlay on the map
+<ul>
+<li><em>None selected</em> shows the base map of <em>OP</em></li>
+<li><em>Closed Area I</em> displays the location of CA I</li>
+<li><em>Closed Area II</em> displays the location of CA II</li>
+<li><em>Cod Closure</em> displays the Cod Closure locations
+<ul>
+<li>Changing <em>Survey Observations</em> slider will change the closed cells displayed</li>
+<li>For example if the <em>Survey Observations</em> slider is set to 2012-2014 only the cells closed between 2012-2014 will be shown</li>
+</ul></li>
+<li><em>Yellowtail Closure</em> displays the Yellowtail Closure locations
+<ul>
+<li>Changing <em>Survey Observations</em> slider will change the closed cells displayed
+<ul>
+<li>For example if the <em>Survey Observations</em> slider is set to 2012-2014 only the cells closed between 2012-2014 will be shown</li>
+</ul></li>
+</ul></li>
+<li><em>All closures</em> displays all of the closures</li>
+</ul></li>
+<li><em>Survey Observations</em> slider
+<ol style="list-style-type: decimal">
+<li>Controls the era of the prediction field mapped</li>
+</ol>
+<ul>
+<li>For example, setting the minimum of the slider to 1988 will show the 1987-1991 prediction field</li>
+</ul>
+<ol start="2" style="list-style-type: decimal">
+<li>Controls the years of the survey points shown in the figure</li>
+</ol></li>
+<li><em>Show survey point</em> allows the user to remove the survey points from the figure</li>
+</ul></li>
+<li>There are two tabs available
+<ul>
+<li><em>Spatial Predictions</em> shows the survey points as presence (yellow) or absence (grey)</li>
+<li><em>Spatial Residuals</em> shows the survey points as model residuals (data up to 2016) or prediction error (2017-2019 data)</li>
+</ul></li>
+</ul>
+</div>
 </div>
 
 
