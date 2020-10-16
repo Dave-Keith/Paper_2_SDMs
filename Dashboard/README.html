@@ -408,9 +408,12 @@ summary {
 <ul>
 <li>In Windows you will simply need to run the executable downloaded</li>
 </ul></li>
-<li>If you do not already have a copy, download the Spatial Closures Dashboard file
+<li>If you do not already have a copy, download the Spatial Closures Dashboard file found at
 <ul>
-<li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd</a></li>
+<li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/</a>
+<ul>
+<li>Right click the file <strong>Spatial_closures_dashboard.Rmd</strong> and select <em>‘save link as’</em> to download the stand-alone file</li>
+</ul></li>
 <li>For users familiar with Github you can simply clone/download/fork this repo
 <ul>
 <li><a href="https://github.com/Dave-Keith/Paper_2_SDMs/" class="uri">https://github.com/Dave-Keith/Paper_2_SDMs/</a></li>
@@ -439,11 +442,11 @@ summary {
 <ul>
 <li>The user can select results from various combinations of
 <ul>
-<li>Stock (cod vs yellowtail)</li>
-<li>Season (Winter, Spring, or Fall)</li>
-<li>Era length (3,5, or 10)</li>
-<li>Covariates (Intercept, SST + Dep, or SST + Dep + Sed)</li>
-<li>Estimator (Response, Link, Raw, or Standard Deviation)
+<li><em>Stock</em> (cod vs yellowtail)</li>
+<li><em>Season</em> (Winter, Spring, or Fall)</li>
+<li><em>Era length</em> (3,5, or 10 years)</li>
+<li><em>Covariates</em> (Intercept, SST + Dep, or SST + Dep + Sed)</li>
+<li><em>Estimator</em> (Response, Link, Raw, or Standard Deviation)
 <ul>
 <li>Response is the most intuitive as it gives the effect size on the proportional scale</li>
 </ul></li>
@@ -463,7 +466,10 @@ summary {
 <ul>
 <li><em>Diagnostics</em> provides the model diagnostic results for a subset of models
 <ul>
-<li>Statistics include <em>WAIC</em>, <em>CPO</em>, <em>DIC</em>, <em>RMSE</em>, and <em>MAE</em> <em>Validation</em> provides the model validation results for each stock</li>
+<li>Statistics include <em>WAIC</em>, <em>CPO</em>, <em>DIC</em>, <em>RMSE</em>, and <em>MAE</em></li>
+</ul></li>
+<li><em>Validation</em> provides the model validation results for each stock
+<ul>
 <li>Validation Statistics include <em>Raw Error</em>, <em>RMSE</em>, <em>MAE</em>, and <em>SD</em></li>
 </ul></li>
 </ul></li>
@@ -545,12 +551,10 @@ summary {
 </ul></li>
 <li><em>Survey Observations</em> slider
 <ol style="list-style-type: decimal">
-<li>Controls the era of the prediction field mapped</li>
-</ol>
+<li>Controls the era of the prediction field mapped
 <ul>
 <li>For example, setting the minimum of the slider to 1988 will show the 1987-1991 prediction field</li>
-</ul>
-<ol start="2" style="list-style-type: decimal">
+</ul></li>
 <li>Controls the years of the survey points shown in the figure</li>
 </ol></li>
 <li><em>Show survey point</em> allows the user to remove the survey points from the figure</li>

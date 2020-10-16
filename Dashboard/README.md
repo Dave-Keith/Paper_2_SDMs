@@ -15,8 +15,9 @@ To run the dashboard you must install R and we recommend installing RStudio.  Th
 4. Install RStudio Desktop by following the installation instructions for your operating system
     - In Windows you will simply need to run the executable downloaded
   
-5. If you do not already have a copy, download the Spatial Closures Dashboard file
-    - https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/Spatial_closures_dashboard.Rmd
+5. If you do not already have a copy, download the Spatial Closures Dashboard file found at
+    - https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard/
+      - Right click the file **Spatial_closures_dashboard.Rmd** and select *'save link as'* to download the stand-alone file
     - For users familiar with Github you can simply clone/download/fork this repo
         - https://github.com/Dave-Keith/Paper_2_SDMs/
   
@@ -40,7 +41,7 @@ There are several components to the dashboard, a brief overview of the layout
   - The user can select results from various combinations of
     - *Stock* (cod vs yellowtail)
     - *Season* (Winter, Spring, or Fall)
-    - *Era length* (3,5, or 10)
+    - *Era length* (3,5, or 10 years)
     - *Covariates* (Intercept, SST + Dep, or SST + Dep + Sed)
     - *Estimator* (Response, Link, Raw, or Standard Deviation)
       - Response is the most intuitive as it gives the effect size on the proportional scale
@@ -111,7 +112,7 @@ There are several components to the dashboard, a brief overview of the layout
       - *All closures* displays all of the closures
     - *Survey Observations* slider
       1. Controls the era of the prediction field mapped
-        - For example, setting the minimum of the slider to 1988 will show the 1987-1991 prediction field
+          - For example, setting the minimum of the slider to 1988 will show the 1987-1991 prediction field
       2. Controls the years of the survey points shown in the figure
     - *Show survey point* allows the user to remove the survey points from the figure
   - There are two tabs available
