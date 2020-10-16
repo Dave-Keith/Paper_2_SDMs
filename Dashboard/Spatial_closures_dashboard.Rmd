@@ -216,15 +216,16 @@ rm(temp,temp2)
 ```{r}
 
 awesomeRadio(inputId  = "species",
-             label = "Which Species",
+             label = "Which Stock",
              choices = c("Atlantic cod" = "cod_PA",
                         "Yellowtail flounder" = "yt_PA"),
              selected = "cod_PA")
 
-awesomeRadio("survey","Which Survey",
-            choices = c("NMFS Spring" = "nmfs-spring",
-                        "NMFS Fall" = "nmfs-fall",
-                        "DFO RV" = "RV"),
+awesomeRadio("survey","Which Season",
+            choices = c("Winter (DFO)" = "RV",
+                        "Spring (NMFS)" = "nmfs-spring",
+                        "Fall (NMFS)" = "nmfs-fall"
+                        ),
             selected = "RV")
 
 awesomeRadio("eras","Length of Eras",
@@ -265,7 +266,7 @@ actionButton("go_out",label="",icon =icon("redo"))
 
     -   *Response* is the effects estimate + intercept on the probability scale
     -   *Raw* is the model output, this is the 'effects' size on logit scale
-    -   *Link* is the effect size + intercept on the logit scale
+    -   *Link* is the *Raw* effect size + intercept on the logit scale
     -   *Standard Deviation* is on the *Raw* model estimates
 
 ```{r}
@@ -496,7 +497,7 @@ renderPlot({
 
 # sliderInput("prob", label = "Occurrence Probability",
 #             min = 0, max = 1, value = 0.75, step = 0.05)
-# radioButtons("species","Which Species", 
+# radioButtons("species","Which Stock", 
 #             choices = c("Atlantic cod" = "cod",
 #                         "Yellowtail flounder" = "yt"))
 selectInput("diag","Diagnostic Statistics", 
@@ -638,13 +639,13 @@ v.plt
 
 sliderInput("prob", label = "Occurrence Probability",
             min = 0, max = 1, value = 0.75, step = 0.05)
-radioButtons("species_sm","Which Species",
+radioButtons("species_sm","Which Stock",
             choices = c("Atlantic cod" = "cod",
                         "Yellowtail flounder" = "yt"))
-selectInput("survey_sm","Which Survey",
-            choices = c("NMFS Spring" = "nmfs-spring_survey",
-                        "NMFS Fall" = "nmfs-fall_survey",
-                        "DFO RV" = "RV_survey"))
+selectInput("survey_sm","Which Season",
+            choices = c("Winter (DFO)" = "RV_survey",
+                        "Spring (NMFS)" = "nmfs-spring_survey",
+                        "Fall (NMFS)" = "nmfs-fall_survey"))
 
 actionButton("go",label="",icon =icon("redo"))
 
@@ -882,13 +883,12 @@ renderPlot({
 
 ## Row {.sidebar data-width="250"}
 
-**These results show the time series of core area during spawning on GB in the U.S. and within Canada using the Canadian Offshore Scallop Fishery (COSF) survey domain. *Atlantic Cod* model results shown are from the *Winter* survey, *Yellowtail Flounder* model results are from the *Spring* survey, both stocks use the 5-year random field model for prediction.**
 
 ```{r}
 
 sliderInput("prob_pred", label = "Occurrence Probability",
             min = 0, max = 1, value = 0.75, step = 0.05)
-radioButtons("species_pred","Which Species",
+radioButtons("species_pred","Which Stock",
              choices = c("Atlantic cod" = "cod",
                          "Yellowtail flounder" = "yt"))
 radioButtons("closure","Closure",
@@ -1056,6 +1056,11 @@ area.era.all <- reactive({
 
 ### Closures Time Series 
 
+-   These results show the time series of core area during spawning on GB in the U.S. and within Canada using the Canadian Offshore Scallop Fishery (COSF) survey domain.
+    - *Atlantic Cod* model results shown are from the *Winter* survey, 
+    - *Yellowtail Flounder* model results are from the *Spring* survey, 
+    - Both stocks use the 5-year random field model for prediction.
+    
 ```{r}
 
 renderPlot({
@@ -1087,7 +1092,7 @@ renderPlot({
                                             theme(plot.subtitle = element_text(hjust = 0.5,element_text(size = 18)),
                                                   axis.text.x = element_text(angle = -45, vjust = 0.5),
                                                   axis.text = element_text(size=14),
-                                                  legend.title = element_blank(),legend.position = 'bottom')
+                                                  legend.title = element_blank(),legend.position = 'right')
      }
      
      if(input$closure %in% c("cod","yt"))
@@ -1101,9 +1106,10 @@ renderPlot({
                                                                 axis.text = element_text(size=14)) +
                                             labs(subtitle = area.title) +
                                             theme(plot.subtitle = element_text(hjust = 0.5,element_text(size = 18)),
-                                                  legend.title = element_blank(),legend.position = 'bottom')
+                                                  legend.title = element_blank(),legend.position = 'right')
      }
-   # Sadly something appears to be wrong with plotly and shiny right now so just ggplots for now...
+    # Plot was going off the page, so added the Null underneath to keep it on the page
+   area.ts <- plot_grid(area.ts,NULL,ncol=1,rel_heights = c(3,1)) 
    area.ts
    })
 })
@@ -1119,17 +1125,23 @@ renderImage(deleteFile=F,{
      isolate({
               if(input$closure == "all")
               {
-                tmp <- tempfile()
+                temp <- tempfile()
                 # Download this to the temp directory you created above
-                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/kitten.png", tmp)
-                list(src = paste0(tmp, "\\kitten.png"),
+                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/kit_blan.zip", temp)
+                # Figure out what this file was saved as
+                temp2 <- tempfile()
+                unzip(zipfile=temp, exdir=temp2)
+                list(src = paste0(temp2, "/kitten.png"),
                 contentType = 'image/png')
               } else
                 {
-                tmp <- tempfile()
+                temp <- tempfile()
                 # Download this to the temp directory you created above
-                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/blank.png", tmp)
-                list(src = paste0(tmp, "/blank.png"),
+                download.file("https://raw.githubusercontent.com/Dave-Keith/Paper_2_SDMs/master/Dashboard/kit_blan.zip", temp)
+                # Figure out what this file was saved as
+                temp2 <- tempfile()
+                unzip(zipfile=temp, exdir=temp2)
+                list(src = paste0(temp2, "/blank.png"),
                 contentType = 'image/png')
                 } # end else
      })
@@ -1148,7 +1160,7 @@ renderImage(deleteFile=F,{
 
 sliderInput("prob_pred_2", label = "Occurrence Probability",
             min = 0, max = 1, value = 0.75, step = 0.05)
-radioButtons("species_pred_2","Which Species",
+radioButtons("species_pred_2","Which Stock",
              choices = c("Atlantic cod" = "cod",
                          "Yellowtail flounder" = "yt"))
 radioButtons("closure_2","Closure",
@@ -1232,6 +1244,12 @@ area.era.pred <- reactive({
 
 ### Spatial Predictions
 
+-   These results show the spatial *core area* predictions during spawning on GB.
+    - The points are actual presence/absence results for each survey tow 
+    - *Atlantic Cod* model results shown are from the *Winter* survey, 
+    - *Yellowtail Flounder* model results are from the *Spring* survey, 
+    - Both stocks use the 5-year random field model for prediction.
+
 ```{r}
 
 renderPlot({
@@ -1287,12 +1305,20 @@ renderPlot({
     }
     if(input$show_pts == T) plt.pred <- plt.pred + geom_sf(data=predict.pts,aes(response,fill = response),color='white',shape=21,size=4,alpha=0.2) +
       coord_sf(x=c(380000,780000), y = c(4400000,4750000)) # Adding in the years messes up the plot if you don't add in the coord_sf
+    plt.pred  <- plot_grid(plt.pred,NULL,ncol=1,rel_heights = c(3,1)) 
     plt.pred
+
   }) # end isolate
 })
 ```
 
 ### Spatial Residuals 
+
+-   These results show the spatial *core area* predictions during spawning on GB.
+    - The points are shown as 'residual' or 'prediction' error from the model
+    - *Atlantic Cod* model results shown are from the *Winter* survey, 
+    - *Yellowtail Flounder* model results are from the *Spring* survey, 
+    - Both stocks use the 5-year random field model for prediction.
 
 ```{r}
 
@@ -1348,7 +1374,9 @@ renderPlot({
     if(input$show_pts == T) plt.pred <- plt.pred + geom_sf(data=predict.pts,aes(fitted,fill = resid),color='white',shape=21,size=4,alpha=0.2) +
       coord_sf(x=c(380000,780000), y = c(4400000,4750000)) # Adding in the years messes up the plot if you don't add in the coord_sf
     
+    plt.pred  <- plot_grid(plt.pred,NULL,ncol=1,rel_heights = c(3,1)) 
     plt.pred
+
   }) # end isolate
 })
 ```
