@@ -55,7 +55,7 @@ There are several components to the dashboard, a brief overview of the layout
   - There are two tabs available
     - *Diagnostics* provides the model diagnostic results for a subset of models
       - Statistics include *WAIC*, *CPO*, *DIC*, *RMSE*, and *MAE*
-      *Validation* provides the model validation results for each stock
+    - *Validation* provides the model validation results for each stock
       - Validation Statistics include *Raw Error*, *RMSE*, *MAE*, and *SD*
       
 ### Spatial Results 
