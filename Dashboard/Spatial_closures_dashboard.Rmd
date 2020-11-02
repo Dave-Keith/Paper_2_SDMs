@@ -27,6 +27,7 @@ req.packages <- c("shiny",
                   "lubridate",
                   "plotly",
                   "sf",
+                  "sp",
                   "data.table",
                   "units",
                   "cowplot",
@@ -36,7 +37,20 @@ req.packages <- c("shiny",
                   "boot",
                   'concaveman',
                   'ggthemes',
-                  "nngeo")
+                  "nngeo",
+                  "marmap",
+                	"ggplot2",
+                	"stars",
+                	"tmaptools",
+                	"rnaturalearth",
+                	"rnaturalearthdata",
+                	"raster",
+                	"rgdal",
+                	"RStoolbox",
+                	"pals",
+                	"ggnewscale",
+                	"ggspatial",
+                  'devtools')
 # If you don't have the packages install them + give a heads up that you are
 new.packages <- req.packages[!(req.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)>0) 
@@ -46,6 +60,12 @@ if(length(new.packages)>0)
   #if(tolower(wanna.install) == 'y') 
   install.packages(new.packages,repos = "http://cran.us.r-project.org") #else { stop("You didn't want to install the packages so this script does not work.")}
 }
+
+# You also need to install this github repo if you do not have it.
+hi.res <- any(installed.packages()[,"Package"] %in% "rnaturalearthhires")
+if(hi.res == F) devtools::install_github("https://github.com/ropensci/rnaturalearthhires/")
+  
+
 ################Section 1    Load data and functions ########################## ################Section 1    Load data and functions ##########
 # Now load the packages
 invisible(lapply(req.packages, library, character.only = TRUE))
