@@ -9,6 +9,7 @@ library(rlist)
 library(tidyverse)
 library(cowplot)
 library(sf)
+library(ineq)
 
 
 # So this is the big file that has all the initial model diagnostics in it. This 
@@ -227,19 +228,64 @@ load("D:/Github/Paper_2_SDMs/data/model_diagnostics_for_papers.RData")
 
 load("D:/Github/Paper_2_SDMs/Results/Data_for_Gini.RData" )
 
-nmfs.gini
-
 
 names(nmfs.surv.gb) <- tolower(names(nmfs.surv.gb))
 names(rv.surv.gb) <- tolower(names(rv.surv.gb))
 
 rv.surv.gb <- rv.surv.gb %>% dplyr::select(c("strataid","areakm","type",'geometry'))
 names(rv.surv.gb) <- c("strata","area",'type','geometry')
+# Sadly some of the survey strata in the RV shapefile are finer scale than in our data.. (5Z3 and 5Z4 are the ones...)
+rv.surv.gb$strata <- substr(rv.surv.gb$strata,1,3)
+# Now I am going to strip the geometry and merge the areas of same strata...
+st_geometry(rv.surv.gb) <- NULL
+rv.surv.gb <- rv.surv.gb %>% group_by(strata) %>% dplyr::summarise(area = sum(area))
+
 nmfs.surv.gb <- nmfs.surv.gb %>% dplyr::select(c("strata","areakm",'set_','geometry'))
 names(nmfs.surv.gb) <- c("strata","area",'set','geometry')
+nmfs.surv.gb$strata <- nmfs.surv.gb$strata
 
 gini.nmfs <- left_join(data.frame(nmfs.gini),data.frame(nmfs.surv.gb),by = 'strata')
 gini.rv <- left_join(data.frame(rv.gini),data.frame(rv.surv.gb),by = 'strata')
-
+gini.rv$weight[gini.rv$number == 0] <- 0
 head(gini.rv)
+gini.rv <- gini.rv %>% filter(year >=1987)
+gini.rv$strata <- as.factor(gini.rv$strata)
+
+cod.bms <-  gini.rv %>% dplyr::filter(species == 'cod_PA') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+cod.bms <- cod.bms[,!names(cod.bms) == "area"]
+cod.bms$species <- 'Atlantic Cod'
+cod.bms <- left_join(cod.bms,rv.surv.gb,by = "strata")
+cod.bms$wt.mn.yr.strata[is.nan(cod.bms$wt.mn.yr.strata)] <- 0
+cod.bms$num.mn.yr.strta[is.nan(cod.bms$num.mn.yr.strta)] <- 0
+# Do the same for YT
+yt.bms <-  gini.rv %>% dplyr::filter(species == 'yt_PA') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+yt.bms <- yt.bms[,!names(yt.bms) == "area"]
+yt.bms$species <- 'Yellowtail Flounder'
+yt.bms <- left_join(yt.bms,rv.surv.gb,by = "strata")
+yt.bms$wt.mn.yr.strata[is.nan(yt.bms$wt.mn.yr.strata)] <- 0
+yt.bms$num.mn.yr.strta[is.nan(yt.bms$num.mn.yr.strta)] <- 0
+
+rv.bms <- dplyr::bind_rows(cod.bms,yt.bms)
+
+rv.bms$tot.area <- sum(rv.surv.gb$area)
+
+rv.bms <- rv.bms %>% dplyr::mutate(wbn = (wt.mn.yr.strata*(area/tot.area)))
+rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(wbd = sum(wbn))
+rv.bms <- rv.bms %>% dplyr::mutate(wb = wbn/wbd)
+rv.bms <- rv.bms %>% group_by(year,species) %>% arrange(wb,.by_group =T)
+rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.pbm = cumsum(wb))
+rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cumsum(area))
+rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
+rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
+# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
+rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
+
+ggplot(rv.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
+ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species))
+
+# Now we do the same with NMFS...
+nmfs.bms <- gini.nmfs %>%  group_by(year,strata,area) %>% dplyr::summarise(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+
+
+tot.area.rv <- sum(rv.surv.gb$area)
 
