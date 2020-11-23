@@ -8,6 +8,8 @@ direct.proj <- "d:/Github"
 library(rlist)
 library(tidyverse)
 library(cowplot)
+library(sf)
+
 
 # So this is the big file that has all the initial model diagnostics in it. This 
 # one wasn't included in the inital list of model diagnostics I develoepd because that is overwhelming for the dashboard
@@ -24,6 +26,11 @@ load("D:/Github/Paper_2_SDMs/Data/FE_static_RF_model_selection.RData")
 load("D:/Github/Paper_2_SDMs/Data/All_model_diagnostics.RData")
 theme_set(theme_classic(base_size = 10))
 
+
+
+############### Section 2  MODEL SELECTION SUMMARIES ###################################################################################################
+######
+######
 
 # So we'll show model diagnostics for the single fixed effects and static random field as one figure with 6 panels. 3 for surveys
 # and 3 for species
@@ -210,8 +217,29 @@ plt.rf.dic <- plot_grid(plt.cod.waic.rf,plt.yt.5.10.dic.rf,plt.yt.3.5.dic.rf,nro
 #save.image("D:/Github/Paper_2_SDMs/Data/model_diagnostics_for_papers.RData")
 load("D:/Github/Paper_2_SDMs/data/model_diagnostics_for_papers.RData")
 
+############### End Section 2  END MODEL SELECTION SUMMARIES ###################################################################################################
+########
 
 
+######################## Section 3 Gini Index Calcs #########################################################################################################
+########
+# Now we can do the Gini calculations here 
+
+load("D:/Github/Paper_2_SDMs/Results/Data_for_Gini.RData" )
+
+nmfs.gini
 
 
+names(nmfs.surv.gb) <- tolower(names(nmfs.surv.gb))
+names(rv.surv.gb) <- tolower(names(rv.surv.gb))
+
+rv.surv.gb <- rv.surv.gb %>% dplyr::select(c("strataid","areakm","type",'geometry'))
+names(rv.surv.gb) <- c("strata","area",'type','geometry')
+nmfs.surv.gb <- nmfs.surv.gb %>% dplyr::select(c("strata","areakm",'set_','geometry'))
+names(nmfs.surv.gb) <- c("strata","area",'set','geometry')
+
+gini.nmfs <- left_join(data.frame(nmfs.gini),data.frame(nmfs.surv.gb),by = 'strata')
+gini.rv <- left_join(data.frame(rv.gini),data.frame(rv.surv.gb),by = 'strata')
+
+head(gini.rv)
 

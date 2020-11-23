@@ -18,7 +18,7 @@ get_data('rv', data.dir ="D:/NAS/Projects/GB_time_area_closure_SPERA/Data/2017_2
 # Run this to quickly subset the data fro summarize catches, Cod = 10, YT = 42.
 # Because of the 0's I don't want to do cod and yt at the same time, 
 get_survey(survey = "GEORGES")
-data_filter() # In here I subset to 2017-2019 data, cod, and stratified survey stations (i.e. RV survey).
+data_filter() # In here  cod, and stratified survey stations (i.e. RV survey).
 # Then you can run this on just the cod and yellowtail data, much quicker.
 sets.cod <- summarize_catches(valid.coords = T) 
 sets.cod$species <- "cod_PA"
@@ -26,7 +26,7 @@ names(sets.cod) <- tolower(names(sets.cod))
 # Then do YT seperately, then I'll take care of merging these...
 get_data('rv', data.dir ="D:/NAS/Projects/GB_time_area_closure_SPERA/Data/2017_2020_data/") 
 get_survey(survey = "GEORGES")
-data_filter()
+data_filter() # In here  yt, and stratified survey stations (i.e. RV survey).
 sets.yt <- summarize_catches(valid.coords = T) 
 sets.yt$species <- "yt_PA"
 names(sets.yt) <- tolower(names(sets.yt))
@@ -192,6 +192,7 @@ temp2 <- tempfile()
 unzip(zipfile=temp, exdir=temp2)
 # Now grab the individual shape files I want.
 rv <- st_read(dsn = paste0(temp2,"/MaritimesRegionEcosystemAssessmentStrata(2014-).shp"))
+
 nmfs <- st_read(dsn = paste0(temp2,"/newUSstrata_UTM19.shp"))
 
 
@@ -227,7 +228,7 @@ ggplot(nmfs.gini) + geom_sf()
 
 nmfs.surv.gb <- st_intersection(nmfs,clp.pred)
 rv.surv.gb <- st_intersection(rv,clp.pred)
-ggplot(nmfs.surv.gb) + geom_sf()
+ggplot(rv.surv.gb) + geom_sf()
 
 rv.surv.gb$Areakm <- rv.surv.gb %>% st_area() %>% units::set_units("km^2") %>% as.numeric()
 nmfs.surv.gb$Areakm <- nmfs.surv.gb %>% st_area() %>% units::set_units("km^2") %>% as.numeric()
