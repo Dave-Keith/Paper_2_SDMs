@@ -236,3 +236,4 @@ nmfs.surv.gb$Areakm <- nmfs.surv.gb %>% st_area() %>% units::set_units("km^2") %
 # So now I think I have everythign I need to do the Gini calculations, areas and biomasses for each survey strata.. shouldn't take long now..
 # HA!! Let's save all the bits from the above...
 save(nmfs.gini,rv.gini,nmfs.gini.sf,rv.gini.sf,nmfs.surv.gb,rv.surv.gb,clp.pred,file = "D:/Github/Paper_2_SDMs/Results/Data_for_Gini.RData" )
+#load("D:/Github/Paper_2_SDMs/Results/Data_for_Gini.RData" )

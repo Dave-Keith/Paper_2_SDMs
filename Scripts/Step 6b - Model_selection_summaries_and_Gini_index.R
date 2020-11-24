@@ -279,13 +279,111 @@ rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
 # The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
 rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
+rv.bms$survey <- "Winter"
 
 ggplot(rv.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
+ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species)) #
+
+#Now we do the same with NMFS...
+# I need a survey object with all the levels in each year in it for this...
+nmfs <- expand.grid(strata = nmfs.surv.gb$strata,year = unique(gini.nmfs$year))
+nmfs <- left_join(nmfs,nmfs.surv.gb,by='strata')
+
+cod.bms <-  gini.nmfs %>% dplyr::filter(species == 'cod_PA', survey == 'nmfs-spring') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+cod.bms <- cod.bms[,!names(cod.bms) == "area"]
+cod.bms <- right_join(cod.bms,nmfs,by = c("strata",'year'))
+cod.bms$species <- 'Atlantic Cod'
+cod.bms$wt.mn.yr.strata[is.nan(cod.bms$wt.mn.yr.strata)] <- 0
+cod.bms$num.mn.yr.strta[is.nan(cod.bms$num.mn.yr.strta)] <- 0
+cod.bms$wt.mn.yr.strata[is.na(cod.bms$wt.mn.yr.strata)] <- 0
+cod.bms$num.mn.yr.strta[is.na(cod.bms$num.mn.yr.strta)] <- 0
+
+# Do the same for YT
+yt.bms <-  gini.nmfs %>% dplyr::filter(species == 'yt_PA',survey == 'nmfs-spring') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+yt.bms <- yt.bms[,!names(yt.bms) == "area"]
+yt.bms <- right_join(yt.bms,nmfs,by = c("strata",'year'))
+yt.bms$species <- 'Yellowtail Flounder'
+yt.bms$wt.mn.yr.strata[is.nan(yt.bms$wt.mn.yr.strata)] <- 0
+yt.bms$wt.mn.yr.strata[is.na(yt.bms$wt.mn.yr.strata)] <- 0
+yt.bms$num.mn.yr.strta[is.nan(yt.bms$num.mn.yr.strta)] <- 0
+yt.bms$num.mn.yr.strta[is.na(yt.bms$num.mn.yr.strta)] <- 0
+
+spring.bms <- dplyr::bind_rows(cod.bms,yt.bms)
+
+spring.bms$tot.area <- sum(nmfs.surv.gb$area)
+spring.bms <- spring.bms %>% dplyr::mutate(wbn = (wt.mn.yr.strata*(area/tot.area)))
+spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(wbd = sum(wbn))
+spring.bms <- spring.bms %>% dplyr::mutate(wb = wbn/wbd)
+spring.bms <- spring.bms %>% group_by(year,species) %>% arrange(wb,.by_group =T)
+spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(cum.pbm = cumsum(wb))
+spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cumsum(area))
+spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
+spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
+# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
+spring.bms <- spring.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
+spring.bms$survey <- "Spring"
+spring.bms <- spring.bms %>% dplyr::select(-set,-geometry)
+spring.bms$strata <- as.character(spring.bms$strata)
+
+
+ggplot(spring.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
+ggplot(spring.bms) + geom_line(aes(x = year, y = gini,color=species)) + ylim(c(0,1))
+
+
+# Now we do the same for NMFS Fall
+
+# Now for RV survey get this
+cod.bms <-  gini.nmfs %>% dplyr::filter(species == 'cod_PA', survey == 'nmfs-fall') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+cod.bms <- cod.bms[,!names(cod.bms) == "area"]
+cod.bms <- right_join(cod.bms,nmfs,by = c("strata",'year'))
+cod.bms$species <- 'Atlantic Cod'
+cod.bms$wt.mn.yr.strata[is.nan(cod.bms$wt.mn.yr.strata)] <- 0
+cod.bms$num.mn.yr.strta[is.nan(cod.bms$num.mn.yr.strta)] <- 0
+cod.bms$wt.mn.yr.strata[is.na(cod.bms$wt.mn.yr.strata)] <- 0
+cod.bms$num.mn.yr.strta[is.na(cod.bms$num.mn.yr.strta)] <- 0
+
+# Do the same for YT
+yt.bms <-  gini.nmfs %>% dplyr::filter(species == 'yt_PA',survey == 'nmfs-fall') %>% group_by(year,strata,area,.drop=F) %>% dplyr::summarize(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
+yt.bms <- yt.bms[,!names(yt.bms) == "area"]
+yt.bms <- right_join(yt.bms,nmfs,by = c("strata",'year'))
+yt.bms$species <- 'Yellowtail Flounder'
+yt.bms$wt.mn.yr.strata[is.nan(yt.bms$wt.mn.yr.strata)] <- 0
+yt.bms$wt.mn.yr.strata[is.na(yt.bms$wt.mn.yr.strata)] <- 0
+yt.bms$num.mn.yr.strta[is.nan(yt.bms$num.mn.yr.strta)] <- 0
+yt.bms$num.mn.yr.strta[is.na(yt.bms$num.mn.yr.strta)] <- 0
+
+
+fall.bms <- dplyr::bind_rows(cod.bms,yt.bms)
+# For some reason a 1990 strata pops in here in 2001 and 2004, removing that...
+fall.bms <- fall.bms %>% dplyr::filter(strata != 1990)
+fall.bms$tot.area <- sum(nmfs.surv.gb$area)
+fall.bms <- fall.bms %>% dplyr::mutate(wbn = (wt.mn.yr.strata*(area/tot.area)))
+fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(wbd = sum(wbn))
+fall.bms <- fall.bms %>% dplyr::mutate(wb = wbn/wbd)
+fall.bms <- fall.bms %>% group_by(year,species) %>% arrange(wb,.by_group =T)
+fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(cum.pbm = cumsum(wb))
+fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cumsum(area))
+fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
+fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
+# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
+fall.bms <- fall.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
+fall.bms$survey <- "Fall"
+fall.bms <- fall.bms %>% dplyr::select(-set,-geometry)
+fall.bms$strata <- as.character(fall.bms$strata)
 ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species))
 
+# Now put them all together
+gini.surveys <- dplyr::bind_rows(rv.bms,spring.bms,fall.bms)
+gini.surveys$survey <- factor(gini.surveys$survey,levels = c("Winter","Spring","Fall"))
 # Now we do the same with NMFS...
 nmfs.bms <- gini.nmfs %>%  group_by(year,strata,area) %>% dplyr::summarise(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
 
+ggplot(gini.surveys) + geom_line(aes(x = cum.p.area, y = cum.pbm, color = year,group = year)) + facet_wrap(~species+survey) + 
+  geom_abline(slope=1,intercept =0) + xlim(c(0,1)) + ylim(c(0,1)) + 
+  ylab("Cumlative Proportion of Biomass") + xlab("Cumulative Area")  + scale_color_viridis_c(option = "A")
 
+ggplot(gini.surveys) + geom_line(aes(x = year, y = gini,color=species))  + facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index")
 tot.area.rv <- sum(rv.surv.gb$area)
+
+save(gini.surveys,file = "D:/Github/Paper_2_SDMs/Results/Gini_results.RData")
 
