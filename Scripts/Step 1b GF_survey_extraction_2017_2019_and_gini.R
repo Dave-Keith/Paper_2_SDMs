@@ -82,13 +82,8 @@ cod.dat$species <- 'cod_PA'
 # Now we  also just want to include Station type 1 tows (Survey tows) and 
 # tows with a "Haul" of 1-2 which are either "good" tows or "representative" tows
 # The gear condition codes feed back to the Haul codes so we dont need to specify those.
-# Need the NA for the 1970s data which for some reason are NAs...
-spring.station.list <- stations[stations$STATYPE %in% c(NA,1) & stations$HAUL %in% c(NA,1:2) & stations$CRUISE6 %in% spring.cruise,]
-fall.station.list <- stations[stations$STATYPE %in% c(NA,1) & stations$HAUL %in% c(NA,1:2) & stations$CRUISE6 %in% fall.cruise,]
-
-tst <- spring.station.list[spring.station.list$EST_YEAR == 1979,]
-tst <- tst[!is.na(tst$EST_YEAR),]
-unique(tst$EST_YEAR)
+spring.station.list <- stations[stations$STATYPE == 1 & stations$HAUL %in% 1:2 & stations$CRUISE6 %in% spring.cruise,]
+fall.station.list <- stations[stations$STATYPE == 1 & stations$HAUL %in% 1:2 & stations$CRUISE6 %in% fall.cruise,]
 
 tst <- fall.station.list %>% group_by(CRUISE6) %>% summarise(n = n())
 summary(tst$n)
@@ -131,7 +126,6 @@ rv.key.dat$comldepth <- 1.8288 * rv.key.dat$comldepth
 nmfs.key.dat.sf <- st_as_sf(nmfs.key.dat, coords = c("lon","lat"),crs = 4326)
 rv.key.dat.sf <- st_as_sf(rv.key.dat, coords = c("lon","lat"),crs = 4326)
 
-# Note that by adding in the NA's for the NMFS surveys I would now have something different to what is saved here (DK Nov 2020)
 #save(rv.key.dat,nmfs.key.dat,file = "D:/to_sky/2017_2020/RV_and_NMFS_survey_dat.RData" )
 #load(file = "D:/to_sky/2017_2020/RV_and_NMFS_survey_dat.RData" )
 # Lots of extra's we need to remove for the nmfs data
