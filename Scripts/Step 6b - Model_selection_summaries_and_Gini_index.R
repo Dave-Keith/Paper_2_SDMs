@@ -228,21 +228,21 @@ load("D:/Github/Paper_2_SDMs/data/model_diagnostics_for_papers.RData")
 
 load("D:/Github/Paper_2_SDMs/Results/Data_for_Gini.RData" )
 
+# 
+# names(nmfs.surv.gb) <- tolower(names(nmfs.surv.gb))
+# names(rv.surv.gb) <- tolower(names(rv.surv.gb))
 
-names(nmfs.surv.gb) <- tolower(names(nmfs.surv.gb))
-names(rv.surv.gb) <- tolower(names(rv.surv.gb))
-
-rv.surv.gb <- rv.surv.gb %>% dplyr::select(c("strataid","areakm","type",'geometry'))
-names(rv.surv.gb) <- c("strata","area",'type','geometry')
+#rv.surv.gb <- rv.surv.gb %>% dplyr::select(c("strataid","areakm","type",'geometry'))
+#names(rv.surv.gb) <- c("strata","area",'type','geometry')
 # Sadly some of the survey strata in the RV shapefile are finer scale than in our data.. (5Z3 and 5Z4 are the ones...)
-rv.surv.gb$strata <- substr(rv.surv.gb$strata,1,3)
+#rv.surv.gb$strata <- substr(rv.surv.gb$strata,1,3)
 # Now I am going to strip the geometry and merge the areas of same strata...
-st_geometry(rv.surv.gb) <- NULL
-rv.surv.gb <- rv.surv.gb %>% group_by(strata) %>% dplyr::summarise(area = sum(area))
+#st_geometry(rv.surv.gb) <- NULL
+#rv.surv.gb <- rv.surv.gb %>% group_by(strata) %>% dplyr::summarise(area = sum(area))
 
-nmfs.surv.gb <- nmfs.surv.gb %>% dplyr::select(c("strata","areakm",'set_','geometry'))
-names(nmfs.surv.gb) <- c("strata","area",'set','geometry')
-nmfs.surv.gb$strata <- nmfs.surv.gb$strata
+#nmfs.surv.gb <- nmfs.surv.gb %>% dplyr::select(c("strata","areakm",'set_','geometry'))
+#names(nmfs.surv.gb) <- c("strata","area",'set','geometry')
+#nmfs.surv.gb$strata <- nmfs.surv.gb$strata
 
 gini.nmfs <- left_join(data.frame(nmfs.gini),data.frame(nmfs.surv.gb),by = 'strata')
 gini.rv <- left_join(data.frame(rv.gini),data.frame(rv.surv.gb),by = 'strata')
@@ -277,9 +277,56 @@ rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.pbm = cumsum(w
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cumsum(area))
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
-# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
-rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
 rv.bms$survey <- "Winter"
+
+# The Gini function
+gini <- function(y = , x=NULL)
+{
+  if(is.null(x)) "You have not provided an x, which means your x data are evenly spaced"
+}
+# Now I need to do the Gini calcs...
+for(i in 1:n)
+{
+  if( i == 1) 
+  {
+    fake.gini$xs[i] <- fake.gini$cum.prop.area[i]
+    fake.gini$ys[i] <- fake.gini$y[i]
+  } else {
+    fake.gini$xs[i] <- fake.gini$cum.prop.area[i] - fake.gini$cum.prop.area[i-1]
+    fake.gini$ys[i] <- fake.gini$y[i] - fake.gini$y[i-1]
+  }
+}  
+
+# OK so give this gives me the "B" (see wiki)
+
+tst <- data.frame(X = fake.gini$xs,Y = fake.gini$ys,auc = NA)
+for(i in 1:n)
+{
+  if(i ==1) tst$area[i] <- 0.5 * tst$X[i]*tst$Y[i] else{
+    
+    tst$area[i] <- 0.5 * tst$X[i]*tst$Y[i] + tst$area[i-1] + 0.5 * tst$X[i-1]*tst$Y[i-1]
+  }
+}  
+
+
+
+# I know the total area under the curve is 0.5 (0.5 * 1 * 1)
+B = sum(tst$area)
+A = 0.5 -B
+Gini = A/(A+B)
+# So some simple math gets you to the...
+Gini = 1 - 2*B
+
+
+
+
+ggplot(fake.gini) + geom_line(aes(cum.prop.area,y)) + geom_abline(slope=1,intercept = 0)
+
+
+
+# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
+#rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
+
 
 ggplot(rv.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
 ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species)) #
@@ -375,8 +422,9 @@ ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species))
 # Now put them all together
 gini.surveys <- dplyr::bind_rows(rv.bms,spring.bms,fall.bms)
 gini.surveys$survey <- factor(gini.surveys$survey,levels = c("Winter","Spring","Fall"))
+#save(gini.surveys,file = "D:/Github/Paper_2_SDMs/Results/Gini_results.RData")
+load("D:/Github/Paper_2_SDMs/Results/Gini_results.RData")
 # Now we do the same with NMFS...
-nmfs.bms <- gini.nmfs %>%  group_by(year,strata,area) %>% dplyr::summarise(wt.mn.yr.strata = mean(weight),num.mn.yr.strta = mean(number))
 
 ggplot(gini.surveys) + geom_line(aes(x = cum.p.area, y = cum.pbm, color = year,group = year)) + facet_wrap(~species+survey) + 
   geom_abline(slope=1,intercept =0) + xlim(c(0,1)) + ylim(c(0,1)) + 
@@ -385,5 +433,7 @@ ggplot(gini.surveys) + geom_line(aes(x = cum.p.area, y = cum.pbm, color = year,g
 ggplot(gini.surveys) + geom_line(aes(x = year, y = gini,color=species))  + facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index")
 tot.area.rv <- sum(rv.surv.gb$area)
 
-save(gini.surveys,file = "D:/Github/Paper_2_SDMs/Results/Gini_results.RData")
+
+
+
 
