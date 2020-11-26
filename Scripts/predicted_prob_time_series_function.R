@@ -24,7 +24,9 @@ pred.fun <- function(pred.dat = pred.dat, species = 'cod',survey = "RV",prob = 0
   if(species == 'cod') the.closure <- cod.closures
   if(species == 'yt') the.closure <- yt.closures
   the.closure <- the.closure %>% filter(year %in% closure.yrs)
+  the.closure <- st_transform(the.closure,st_crs(mesh))
   the.closure$area <- the.closure %>% st_area() %>% set_units("km^2")
+  
   # So the key is the last thing is the dataframe we want...
   st_geometry(res) <- st_geometry(rep(mesh,n.eras))
   data.frame(res)

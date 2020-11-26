@@ -9,7 +9,6 @@ library(rlist)
 library(tidyverse)
 library(cowplot)
 library(sf)
-library(ineq)
 
 
 # So this is the big file that has all the initial model diagnostics in it. This 
@@ -25,6 +24,7 @@ library(ineq)
 
 load("D:/Github/Paper_2_SDMs/Data/FE_static_RF_model_selection.RData")
 load("D:/Github/Paper_2_SDMs/Data/All_model_diagnostics.RData")
+source("D:/Github/Assessment_fns/Other_functions/gini_function.R")
 theme_set(theme_classic(base_size = 10))
 
 
@@ -278,58 +278,13 @@ rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cumsum(
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
 rv.bms <- rv.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
 rv.bms$survey <- "Winter"
+# Now the proportion of biomass by group 
+rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(Gini = gini(wb,p.area)) 
 
-# The Gini function
-gini <- function(y = , x=NULL)
-{
-  if(is.null(x)) "You have not provided an x, which means your x data are evenly spaced"
-}
-# Now I need to do the Gini calcs...
-for(i in 1:n)
-{
-  if( i == 1) 
-  {
-    fake.gini$xs[i] <- fake.gini$cum.prop.area[i]
-    fake.gini$ys[i] <- fake.gini$y[i]
-  } else {
-    fake.gini$xs[i] <- fake.gini$cum.prop.area[i] - fake.gini$cum.prop.area[i-1]
-    fake.gini$ys[i] <- fake.gini$y[i] - fake.gini$y[i-1]
-  }
-}  
-
-# OK so give this gives me the "B" (see wiki)
-
-tst <- data.frame(X = fake.gini$xs,Y = fake.gini$ys,auc = NA)
-for(i in 1:n)
-{
-  if(i ==1) tst$area[i] <- 0.5 * tst$X[i]*tst$Y[i] else{
-    
-    tst$area[i] <- 0.5 * tst$X[i]*tst$Y[i] + tst$area[i-1] + 0.5 * tst$X[i-1]*tst$Y[i-1]
-  }
-}  
-
-
-
-# I know the total area under the curve is 0.5 (0.5 * 1 * 1)
-B = sum(tst$area)
-A = 0.5 -B
-Gini = A/(A+B)
-# So some simple math gets you to the...
-Gini = 1 - 2*B
-
-
-
-
-ggplot(fake.gini) + geom_line(aes(cum.prop.area,y)) + geom_abline(slope=1,intercept = 0)
-
-
-
-# The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
-#rv.bms <- rv.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
 
 
 ggplot(rv.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
-ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species)) #
+ggplot(rv.bms) + geom_line(aes(x = year, y = Gini,color=species)) #
 
 #Now we do the same with NMFS...
 # I need a survey object with all the levels in each year in it for this...
@@ -367,14 +322,14 @@ spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area =
 spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
 spring.bms <- spring.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
 # The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
-spring.bms <- spring.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
 spring.bms$survey <- "Spring"
 spring.bms <- spring.bms %>% dplyr::select(-set,-geometry)
 spring.bms$strata <- as.character(spring.bms$strata)
+spring.bms <- spring.bms %>% group_by(year,species) %>%  dplyr::mutate(Gini = gini(wb,p.area)) 
 
 
 ggplot(spring.bms) + geom_line(aes(x = cum.area, y = wb, color = as.factor(year))) + facet_wrap(~species)
-ggplot(spring.bms) + geom_line(aes(x = year, y = gini,color=species)) + ylim(c(0,1))
+ggplot(spring.bms) + geom_line(aes(x = year, y = Gini,color=species)) + ylim(c(0,1))
 
 
 # Now we do the same for NMFS Fall
@@ -413,11 +368,11 @@ fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(cum.area = cum
 fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(p.area = area/tot.area)
 fall.bms <- fall.bms %>% group_by(year,species) %>% dplyr::mutate(cum.p.area = cumsum(p.area))
 # The Gini is calculating the area under from the proportion of biomass by (* I think) and proportion of area figure
-fall.bms <- fall.bms %>% group_by(year,species) %>%  dplyr::mutate(gini = ineq(wb*cum.p.area,type="Gini")) 
 fall.bms$survey <- "Fall"
 fall.bms <- fall.bms %>% dplyr::select(-set,-geometry)
 fall.bms$strata <- as.character(fall.bms$strata)
-ggplot(rv.bms) + geom_line(aes(x = year, y = gini,color=species))
+fall.bms <- fall.bms %>% group_by(year,species) %>%  dplyr::mutate(Gini = gini(wb,p.area)) 
+
 
 # Now put them all together
 gini.surveys <- dplyr::bind_rows(rv.bms,spring.bms,fall.bms)
@@ -430,7 +385,8 @@ ggplot(gini.surveys) + geom_line(aes(x = cum.p.area, y = cum.pbm, color = year,g
   geom_abline(slope=1,intercept =0) + xlim(c(0,1)) + ylim(c(0,1)) + 
   ylab("Cumlative Proportion of Biomass") + xlab("Cumulative Area")  + scale_color_viridis_c(option = "A")
 
-ggplot(gini.surveys) + geom_line(aes(x = year, y = gini,color=species))  + facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index")
+ggplot(gini.surveys) + geom_line(aes(x = year, y = Gini,color=species))  + facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index")
+
 tot.area.rv <- sum(rv.surv.gb$area)
 
 
