@@ -53,6 +53,7 @@ library(sdmTMB)
 library(caret)
 library(data.table)
 library(units)
+library(concaveman)
 #library(SDMTools)
 #devtools::install_github("pbs-assess/sdmTMB") # You may need to install the sdmTMB package from Sean Anderson
 #inla.upgrade(testing = F)
@@ -74,7 +75,10 @@ factor.2.number <- function(x) {as.numeric(levels(x))[x]}
 # Here is the data we need, this comes from Step 3 INLA_mesh_for_gb_surveys_and_scallop_survey.R
 load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/INLA_meshes.RData"))
-load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+load(paste0(direct.proj,"Results/Prediction_mesh.Rdata"))
+#load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+# This overwrites the above, need to tidy this all up...
+load(paste0(direct.proj,"Data/Depth_SST_and_Sed_on_GB.RData"))
 load(paste0(direct.proj,"Data/2017_2020_data/Survey_data_with_covars_2017_2020.RData"))
 
 #load(paste0(direct.proj,"Results/INLA_st_3_output.RData"))
@@ -780,9 +784,6 @@ rand.field.fixed <- do.call('rbind',rand.field.fe)
 #load(paste0(direct.proj,"Results/INLA_fixed_effect_model_validation_cpo_output.RData"))
 
 ############################# 
-
-
-
 ############################# SECTION 4 ################################ SECTION 4###################################################################
 ############################# SECTION 4 ################################ SECTION 4###################################################################
 ############################# SECTION 4 ################################ SECTION 4###################################################################
@@ -1502,10 +1503,16 @@ ggplot(clp) + geom_sf() +
 
 
 # Now all I have to do is intersect the clip polying with the sst and depth fields and we got ourselves our covariates
-pred.covars <- st_intersection(sst.sf,mesh.points)
+pred.covars <- st_intersection(sst.gb,mesh.points)
 names(pred.covars)[1] <- "sst_avg"
-pred.covars <- st_intersection(depth.sf,pred.covars)
+pred.covars <- st_intersection(depth.gb,pred.covars)
 names(pred.covars)[1] <- 'comldepth'
+sed.tmp <- sed.gb %>% dplyr::select(sednum,geometry)
+sed.tmp$sednum <- as.character(sed.tmp$sednum)
+sed.tmp$sednum[sed.tmp$sednum == 5] <- NA
+pred.covars <- st_intersection(sed.tmp,pred.covars)
+names(pred.covars)[1] <- 'SEDNUM'
+
 pred.covars$X <- st_coordinates(pred.covars)[,1]
 pred.covars$Y <- st_coordinates(pred.covars)[,2]
 st_geometry(pred.covars) <- NULL
@@ -1535,11 +1542,17 @@ pred.output.pred <- NULL
     # Loop through each of the surveys
     for(i in 1:num.surveys) 
     {
+      
       # Now lets get our input data sorted
       # Let's select the data for the particular survey of interest
       dat <- dat.final[dat.final$survey == surveys[i],]
+      pred.c <- pred.covars
       # Rename the varialbe of interest to "response"
-      if(species[s] == "cod_PA") resp <- "cod_PA"
+      if(species[s] == "cod_PA")
+      {
+        resp <- "cod_PA"
+        pred.c <- pred.c %>% dplyr::select(-SEDNUM)
+      }
       if(species[s] == "yt_PA") resp <- "yt_PA"
       response <- which(names(dat) == resp)
       names(dat)[response] <- "response"
@@ -1547,39 +1560,45 @@ pred.output.pred <- NULL
       # a full copy of it for every random field in the model, gross, yes!
       # if(species[s] == "cod_PA") 
       # {
-       eras.p <- unique(dat$years_5)
-       num.eras.p <- length(eras.p)
-       tmp <- NULL
-       for(p in 1:num.eras.p) tmp[[p]] <- data.frame(pred.covars,years_5 = eras.p[p],year=NA)
-       covar.pred <- do.call('rbind',tmp)
-       covar.pred$response <- NA
-       dat <- dat %>% dplyr::select(comldepth,sst_avg,X,Y,years_5,response,year)
-       dat <- rbind(dat,covar.pred)
-      # } # end if(species[s] == "cod_PA") 
+       if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+       {
+         eras.p <- unique(dat$years_3)
+         num.eras.p <- length(eras.p)
+         tmp <- NULL
+         for(p in 1:num.eras.p) tmp[[p]] <- data.frame(pred.c,years_3 = eras.p[p],year=NA)
+         covar.pred <- do.call('rbind',tmp)
+         covar.pred$response <- NA
+         dat <- dat %>% dplyr::select(comldepth,sst_avg,SEDNUM,X,Y,years_3,response,year)
+         dat <- rbind(dat,covar.pred)
+         dat$years_5 <- NA
+         # Turn the Sediment numbers into a factor
+         dat$SEDNUM[dat$SEDNUM %in% c(2,5,6,8,9)] <- NA
+         dat$fSEDNUM <- as.factor(dat$SEDNUM)
+         dat$years_3 <- as.factor(dat$years_3)
+         eras <- as.numeric(dat$years_3)
+       } else
+        {
+          eras.p <- unique(dat$years_5)
+          num.eras.p <- length(eras.p)
+          tmp <- NULL
+          for(p in 1:num.eras.p) tmp[[p]] <- data.frame(pred.c,years_5 = eras.p[p],year=NA)
+          covar.pred <- do.call('rbind',tmp)
+          covar.pred$response <- NA
+          if(species[s] == "cod_PA") dat <- dat %>% dplyr::select(comldepth,sst_avg,X,Y,years_5,response,year)
+          if(species[s] == "yt_PA") dat <- dat %>% dplyr::select(comldepth,sst_avg,SEDNUM,X,Y,years_5,response,year)
+          dat <- rbind(dat,covar.pred)
+          dat$years_5 <- as.factor(dat$years_5)
+          eras <- as.numeric(dat$years_5)
+          dat$years_3 <- NA
+        } #end the else 
       
-      # if(species[s] == "yt_PA") 
-      # {
-      #   eras.p <- unique(dat$years_3)
-      #   num.eras.p <- length(eras.p)
-      #   tmp <- NULL
-      #   for(p in 1:num.eras.p) tmp[[p]] <- data.frame(pred.covars,years_3 = p,years_5 = NA)
-      #   covar.pred <- do.call('rbind',tmp)
-      #   covar.pred$response <- NA
-      #   dat <- dat %>% dplyr::select(comldepth,sst_avg,X,Y,years_5,years_3,response)
-      #   dat <- rbind(dat,covar.pred)
-      # } # end if(species[s] == "yt_PA") 
 
-      # Lets log transform depth and chl_rg, then center depth, chl_rg and sst_avg, also make SEDNUM a factor
+      # Lets log transform depth and sst_avg, 
       dat$depth_log <- log(-dat$comldepth)
       dat$depth_cen <-  dat$depth_log - mean(dat$depth_log,na.rm=T) # Log transform should help with issues related to skew of the depth data.
       dat$sst_avg_cen <- scale(dat$sst_avg)
 
-  
-      # I wan the year group to be a categorical variable.
-      #if(species[s] == 'cod_PA')
-      dat$years_5 <- as.factor(dat$years_5)
-      #if(species[s] == 'yt_PA') dat$years_3 <- as.factor(dat$years_3) # I won't run the 3 year era models unless the 5 years are better than the 10 years.
-      
+
       # Get the location of our data...
       loc <- cbind(dat$X,dat$Y)
      
@@ -1598,13 +1617,18 @@ pred.output.pred <- NULL
       # First the 10 year era
       # Now the 3 and 5 year model
       #if(species[s] == "cod_PA") 
-      eras <- as.numeric(dat$years_5)
+
       #if(species[s] == "yt_PA") eras <- as.numeric(dat$years_3)
       
       era.names <- unique(eras)
       n.eras <- length(unique(eras))
       #if(species[s] == "cod_PA") 
-      A.era <- inla.spde.make.A(mesh, loc,repl = eras)
+      
+      
+      if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+      {
+        A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
+      } else {A.era <- inla.spde.make.A(mesh, loc,repl = eras)}
       #if(species[s] == "yt_PA") A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
       
       # While I have my range for my spatial priors I don't have my sigma or the probabilites for the prirors
@@ -1616,11 +1640,13 @@ pred.output.pred <- NULL
                                   prior.sigma=c(sigma,s.alpha), # The probabiliy that the marginal standard deviation (first number) is larger than second number
                                   prior.range=c(range,r.alpha)) # The Meidan range and the probability that the range is less than this...
       
-      
-      # and now we define the spatio-temporal random field.  I want to use
+       # and now we define the spatio-temporal random field.  I want to use
       # group of the 3 year era so that I can make the temporal field be an AR1 process.
       #if(species[s] == "cod_PA") 
-      w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.rep = n.eras)
+      if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+      {
+        w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.group = n.eras)
+      } else {w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.rep = n.eras)}
       #if(species[s] == "yt_PA") w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.group = n.eras)
       # Zuur never talks about this puppy I don't think, it is a penalised complexity prior but I'm not sure what for, Zuur only
       # discusses these in terms of the PCP's of the spatial field, this is a prior for precision, see inla.doc("pc.prec")
@@ -1641,13 +1667,26 @@ pred.output.pred <- NULL
       # done unless we have a categorical covariate
       options(na.action='na.pass')# Need to do this so that the model matrix retains the NA's in it.
       # The nice thing here is that we can make this a complex as we want and just run submodels from within this model
-      # structure.
-      # Now we need to make a model matrix for the covariates that come out as useful
-      # First I want to convert SEDNUM to a factor for this analysis.
-      X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g , data = dat)
-      # And then make a covariate matrix
-      X <- data.frame(depth =        X.matrix[,1],
-                      sst   =        X.matrix[,2])
+
+      if(species[s] == "cod_PA")
+      {
+        X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g , data = dat)
+        
+        # And then make a covariate matrix
+        X <- data.frame(depth =        X.matrix[,1],
+                        sst   =        X.matrix[,2])
+      }
+      
+      if(species[s] == "yt_PA")
+      {
+        X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g + fSEDNUM, data = dat)
+        
+        # Our matrix for the yt models...
+        X <- data.frame(depth =        X.matrix[,1],
+                        sst   =        X.matrix[,2],
+                        fsed_3     =   X.matrix[,3],
+                        fsed_4     =   X.matrix[,4])
+      }
       
       # Next up we make the stack...
       # I need a stack, probably should eventually split this into an estimation, validation and prediction stack, but for now
@@ -1683,19 +1722,18 @@ pred.output.pred <- NULL
       hyp.rw2 <- list(theta=list(prior = "pc.prec", param = c(U,0.05)))
       
      # The best cod and yellowtail models
-        # if(species[s] == "cod_PA") 
-        # {
-           model.depth.sst <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+
+        if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall')
+        {
+          model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
             f(sst , model = "rw1", hyper = hyp.rw2)  + 
+            fsed_3 + fsed_4 +
             f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
-        #}
-      
-        # if(species[s] == "yt_PA") 
-        # {
-        #   model.depth.sst <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
-        #     f(sst , model = "rw1", hyper = hyp.rw2)  +
-        #     f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
-        # } # end if(species[s] == "yt_PA" && st.mods[st] == 3) 
+        } else {
+            model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  +
+              f(sst , model = "rw1", hyper = hyp.rw2)  +
+              f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+        } # end if(species[s] == "yt_PA" && st.mods[st] == 3)
         # 
       
       # Let's giver, make the spatial model.
@@ -1707,7 +1745,7 @@ pred.output.pred <- NULL
       #if(st == 2) {stk <- skt.5; st.mod <- "st.5"}
         run.name <- paste0(species[s]," ", surveys[i],"_survey")
         print(paste("Model run started at ",Sys.time()))
-        r.out <- inla(model.depth.sst, family=fam, data = inla.stack.data(stk),
+        r.out <- inla(model, family=fam, data = inla.stack.data(stk),
                       control.predictor=list(A=inla.stack.A(stk),link =1), # The link = 1 is the reason I was getting the transformed predictions, it predicts on the identity scale unless the link is specified (1 means the 1st likelihoods link, which is the only likelihood in this case)
                       #control.inla=list(int.strategy='eb'), ## do not integrate over theta, makes the calculation quicker but not to be used for a final model run
                       #verbose=TRUE,
@@ -1723,8 +1761,9 @@ pred.output.pred <- NULL
                              dep = dat$depth_cen[!is.na(dat$response)],
                              sst = dat$sst_avg_cen[!is.na(dat$response)],
                              depth = dat$comldepth[!is.na(dat$response)],
+                             sed = dat$fSEDNUM[!is.na(dat$response)],
                              sst_avg = dat$sst_avg[!is.na(dat$response)],
-                             #years_3 = dat$years_3[!is.na(dat$response)],
+                             years_3 = dat$years_3[!is.na(dat$response)],
                              years_5 = dat$years_5[!is.na(dat$response)],
                              X = dat$X[!is.na(dat$response)],
                              Y = dat$Y[!is.na(dat$response)],
@@ -1744,7 +1783,8 @@ pred.output.pred <- NULL
                             #sst = dat$sst_avg_cen[is.na(dat$response)],
                             depth = dat$comldepth[is.na(dat$response)],
                             sst_avg = dat$sst_avg[is.na(dat$response)],
-                            #years_3 = dat$years_3[is.na(dat$response)],
+                            sed = dat$fSEDNUM[!is.na(dat$response)],
+                            years_3 = dat$years_3[is.na(dat$response)],
                             years_5 = dat$years_5[is.na(dat$response)],
                             X = dat$X[is.na(dat$response)],
                             Y = dat$Y[is.na(dat$response)],
@@ -1792,14 +1832,14 @@ pred.output.pred <- NULL
         
         
       # Save the image on the way through just in case the computer decides to shut down...
-      save.image(paste0(direct.proj,"Results/INLA_output_full_predicted_field_",species[s],"_",surveys[i],".RData"))
+      save.image(paste0(direct.proj,"Results/INLA_output_NEW_full_predicted_field_",species[s],"_",surveys[i],".RData"))
     }# end for(i in 1:n.surveys)
     # Save the image on the way through just in case the computer decides to shut down, worst case here I lose about half a day of modelling.
     # This thing is gonna be big...
     #save.image(paste0(direct.proj,"Results/INLA_output_full_predicted_field",species[s],"tmp.RData"))
   } # end for(s in 1:n.species)
 
-save.image(paste0(direct.proj,"Results/INLA_model_full_predicted_field_yt_mods.RData"))
+save.image(paste0(direct.proj,"Results/INLA_model_NEW_full_predicted_field_yt_mods.RData"))
 
 # It's on this predicted field that I want to do Center of gravity and get the 
 # bounds for area in which you are likely to see the species....
