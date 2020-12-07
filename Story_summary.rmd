@@ -7,22 +7,30 @@ output:
   html_document: default
 ---
 
+## Introduction
+
 1.  Major challenge facing fishery science is accounting for environmental processes both spatially and temporally.
 
-2.  One way this has been done is SDM's and recent technological breakthroughs mean we can make more advanced SDM's that explicitly account for spatial patterns
+2.  Fisheries science has some amazing data to do this but we haven’t taken full advantage of the data we have due to computational limitations, however new approaches are now available 
 
-3.  Fisheries science has some amazing data to do this but we haven't taken full advantage of the data we have
+3. We going to show you what we can do using Georges Bank which is super data and biologically rich area with a focus on two formerly valuable stocks (Atl. Cod and Yellowtail).
 
-4.  We going to show you what we can do using Georges Bank which is super data and biologically rich area with a focus on two formerly valuable stocks (Atl. Cod and Yellowtail)
+4.  (Addressing Dan's suggestion) Various indices have been developed which can provide an overview how the spatial distribution of abundance or biomass changes over time (Gini, D50, etc).  These indices generally measure how evenly a population is distributed across some domain with data that is aggregated at some scale (in fisheries often at the scale of the strata). While these indices provide a synoptic view of how a distribution of abundance or biomass has changed over time, they are unable to provide a detailed understanding of the spatial changes in these distributions. (Trying to say they show big picture that the distribution is more or less even, but we don't really know much about the actual pattern past that.)
 
-5.  Our objectives are:
+5.  SDM’s have long been used to develop predictive maps of species distributions.  Problem is they were generally static maps at the start, but recent technological breakthroughs mean we can make more advanced SDM’s that explicitly account for spatial and temporal patterns. 
 
-    -   Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species
-    -   Determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed
-    -   Determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall\
-    -   Using these two species as a case study investigate how well existing closures on GB align with these species during spawning and
-    -   Quantify how well the models can predict the spawning distribution of these species 1, 2, and 3 years into the future.
+6.  Our objectives are:
 
+    - Use a suite of static environmental layers to determine whether any of these environmental data informed the distribution of either species
+    - Determine whether the species distributions changed over time and if so how rapidly changes in the distributions could be observed
+    - Determine whether the species distributions change seasonally using data from groundfish surveys in the winter, spring, and fall
+    - Use these models to quantify changes in the core area within Canadian and U.S. waters
+
+## Methods
+
+What we've shown with the Closure paper.  I'm also re-running the models again, so we are going to have 3 year predictions 
+
+## Results
 6.  Our results show:
 
     -   There are both seasonal and long term shifts in the distribution of both species.\
