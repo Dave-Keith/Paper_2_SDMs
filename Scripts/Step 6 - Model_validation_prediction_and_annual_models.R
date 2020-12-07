@@ -79,7 +79,9 @@ load(paste0(direct.proj,"Results/Prediction_mesh.Rdata"))
 #load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
 # This overwrites the above, need to tidy this all up...
 load(paste0(direct.proj,"Data/Depth_SST_and_Sed_on_GB.RData"))
-load(paste0(direct.proj,"Data/2017_2020_data/Survey_data_with_covars_2017_2020.RData"))
+load(paste0(direct.proj,"Data/2017_2020_data/Survey_data_with_ALL_covars_2017_2020.RData"))
+load(paste0(direct.proj,"Data/Depth_SST_and_Sed.RData"))
+
 
 #load(paste0(direct.proj,"Results/INLA_st_3_output.RData"))
 direct.proj <- dir.tmp 
@@ -1551,7 +1553,7 @@ pred.output.pred <- NULL
       if(species[s] == "cod_PA")
       {
         resp <- "cod_PA"
-        pred.c <- pred.c %>% dplyr::select(-SEDNUM)
+        #pred.c <- pred.c %>% dplyr::select(-SEDNUM)
       }
       if(species[s] == "yt_PA") resp <- "yt_PA"
       response <- which(names(dat) == resp)
@@ -1584,12 +1586,14 @@ pred.output.pred <- NULL
           for(p in 1:num.eras.p) tmp[[p]] <- data.frame(pred.c,years_5 = eras.p[p],year=NA)
           covar.pred <- do.call('rbind',tmp)
           covar.pred$response <- NA
-          if(species[s] == "cod_PA") dat <- dat %>% dplyr::select(comldepth,sst_avg,X,Y,years_5,response,year)
-          if(species[s] == "yt_PA") dat <- dat %>% dplyr::select(comldepth,sst_avg,SEDNUM,X,Y,years_5,response,year)
+          dat <- dat %>% dplyr::select(SEDNUM,comldepth,sst_avg,X,Y,years_5,response,year)
           dat <- rbind(dat,covar.pred)
           dat$years_5 <- as.factor(dat$years_5)
           eras <- as.numeric(dat$years_5)
           dat$years_3 <- NA
+          # Turn the Sediment numbers into a factor
+          dat$SEDNUM[dat$SEDNUM %in% c(2,5,6,8,9)] <- NA
+          dat$fSEDNUM <- as.factor(dat$SEDNUM)
         } #end the else 
       
 
@@ -1627,8 +1631,8 @@ pred.output.pred <- NULL
       
       if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
       {
-        A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
-      } else {A.era <- inla.spde.make.A(mesh, loc,repl = eras)}
+        A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras) # 3 year models
+      } else {A.era <- inla.spde.make.A(mesh, loc,repl = eras)} # 5 year models
       #if(species[s] == "yt_PA") A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
       
       # While I have my range for my spatial priors I don't have my sigma or the probabilites for the prirors
@@ -1723,19 +1727,27 @@ pred.output.pred <- NULL
       
      # The best cod and yellowtail models
 
+      # This first big handles the yellowtail models
         if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall')
         {
           model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
             f(sst , model = "rw1", hyper = hyp.rw2)  + 
             fsed_3 + fsed_4 +
-            f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
-        } else {
-            model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  +
-              f(sst , model = "rw1", hyper = hyp.rw2)  +
+            f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
+        } else { # This gets us the 5 year yellowtail model for the fall.
+          model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+            f(sst , model = "rw1", hyper = hyp.rw2)  + 
+            fsed_3 + fsed_4 +
               f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
         } # end if(species[s] == "yt_PA" && st.mods[st] == 3)
         # 
-      
+      # ANd this is what we want for the cod models.#
+      if(species[s] == 'cod_PA')
+      {
+      model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  +
+        f(sst , model = "rw1", hyper = hyp.rw2)  +
+        f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+      }
       # Let's giver, make the spatial model.
       # Now we can loop this to run over each model and for each stack, 
       # I was going to run a stack loop, but that is amazingly slow, so instead I'm going to do the model selection with the
@@ -1752,6 +1764,7 @@ pred.output.pred <- NULL
                       control.compute = list(dic=T,waic=T,cpo=T,openmp.strategy="huge"))  # The Openmp.strategy will use more cores, if set to 'huge' it uses everything...
         print(paste("Model run completed at ",Sys.time()))
         # The fitted model, residuals and the covariates, both the standardized and on the original scale.
+        
         mo.out <- data.frame(fitted = r.out$summary.fitted.values[e.id,"mean"] , # The expected values can be found with this
                              resid = dat$response[!is.na(dat$response)] - r.out$summary.fitted.values[e.id,"mean"],
                              sd = r.out$summary.fitted.values[e.id,"sd"] ,
@@ -1761,7 +1774,7 @@ pred.output.pred <- NULL
                              dep = dat$depth_cen[!is.na(dat$response)],
                              sst = dat$sst_avg_cen[!is.na(dat$response)],
                              depth = dat$comldepth[!is.na(dat$response)],
-                             sed = dat$fSEDNUM[!is.na(dat$response)],
+                             sed = dat$SEDNUM[!is.na(dat$response)],
                              sst_avg = dat$sst_avg[!is.na(dat$response)],
                              years_3 = dat$years_3[!is.na(dat$response)],
                              years_5 = dat$years_5[!is.na(dat$response)],
@@ -1783,7 +1796,7 @@ pred.output.pred <- NULL
                             #sst = dat$sst_avg_cen[is.na(dat$response)],
                             depth = dat$comldepth[is.na(dat$response)],
                             sst_avg = dat$sst_avg[is.na(dat$response)],
-                            sed = dat$fSEDNUM[!is.na(dat$response)],
+                            sed = dat$SEDNUM[is.na(dat$response)],
                             years_3 = dat$years_3[is.na(dat$response)],
                             years_5 = dat$years_5[is.na(dat$response)],
                             X = dat$X[is.na(dat$response)],
@@ -1839,7 +1852,7 @@ pred.output.pred <- NULL
     #save.image(paste0(direct.proj,"Results/INLA_output_full_predicted_field",species[s],"tmp.RData"))
   } # end for(s in 1:n.species)
 
-save.image(paste0(direct.proj,"Results/INLA_model_NEW_full_predicted_field_yt_mods.RData"))
+save.image(paste0(direct.proj,"Results/INLA_model_NEW_full_predicted_field_all_mods.RData"))
 
 # It's on this predicted field that I want to do Center of gravity and get the 
 # bounds for area in which you are likely to see the species....
@@ -2009,6 +2022,9 @@ ggsave(plt, file = paste0(direct.proj,'Results/Figures/INLA/Encounter_probabilit
 ############################# SECTION 7 ################################ SECTION 7  ###################################################################
 ############################# SECTION 7 ################################ SECTION 7  ###################################################################
 # Here I'm going to bring in the 2017-2019 data and see how well the full model predicts on that data.
+# Post Framework I need(ed) to expand this to predict for all 6 of our final models, which this did not do.
+# I also think it would be useful to compare an intercept model to the full model in terms of out of smample prediction
+# So going to want to run 12 models here... should take a couple weeks...
 
 
 # Need to initialize some objects for later
@@ -2017,43 +2033,83 @@ num.fields <- length(st.mods)
 num.mods <- 1 # The number of models I'm gonna run validation on
 
 
-dat.val.new <- dat.val %>% dplyr::select("comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
-new.dat.final <- new.dat.final %>% dplyr::select("comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
+dat.val.new <- dat.final %>% dplyr::select("SEDNUM","comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
+
+# Now I'm being lazy, but the new.dat.final doesn't have the sediment field in it, need to put those together
+
+new.dat.final <- new.dat.final %>% dplyr::select("SEDNUM","comldepth","lat","lon","survey","year","unique_set_ID","cod_PA","yt_PA","X","Y","sst_avg","years_3","years_5")
 #new.dat.final$comldepth <- -new.dat.final$comldepth
 st_geometry(new.dat.final) <- NULL
 dat.val.new <- rbind(dat.val.new,new.dat.final)
 # I want to set the data up here so we can get the folds identified now
-dat.cod <-  dat.val.new %>% dplyr::filter(survey == "RV")
-dat.yt <- dat.val.new %>% dplyr::filter(survey == "nmfs-spring")
+# dat.cod <-  dat.val.new %>% dplyr::filter(survey == "RV")
+# dat.yt <- dat.val.new %>% dplyr::filter(survey == "nmfs-spring")
 # Number of folds, going for 5 fold cross validation
-
-
+num.mods <- 2 # Going to run an intercept model against the full model to see if either does a better job at 3 year prediction.
+surveys <- unique(dat.val.new$survey)
+num.surveys <- length(surveys)
 
 #res.fd <- NULL
 #mod.diag <- NULL
 mod.output.st.yr <- NULL
 mod.diagnostics.st.yr <- NULL
 pred.res.st.yr <- NULL
-for(s in 1:num.species)
+
+for(s in 1:num.species) 
 {
-  for(st in 1:num.fields)
+  # Loop through each of the surveys
+  for(i in 1:num.surveys) 
   {
-    if(species[s] == 'cod_PA'){ dat <- dat.cod }
-    if(species[s] == 'yt_PA') { dat <- dat.yt }
-    if(grepl("cod", species[s])) resp <- "cod_PA"
-    if(grepl("yt", species[s])) resp <- "yt_PA"
-    response <- which(names(dat) == resp)
-    names(dat)[response] <- "response"
+    for(m in 1:num.mods)
+    {
+      # Now lets get our input data sorted
+      # Let's select the data for the particular survey of interest
+      dat <- dat.val.new[dat.val.new$survey == surveys[i],]
+      # Rename the varialbe of interest to "response"
+      if(species[s] == "cod_PA")
+      {
+        resp <- "cod_PA"
+        #pred.c <- pred.c %>% dplyr::select(-SEDNUM)
+      }
+      if(species[s] == "yt_PA") resp <- "yt_PA"
+      response <- which(names(dat) == resp)
+      names(dat)[response] <- "response"
+      # Next I need to add the era information to the pred data, which means I need
+      # a full copy of it for every random field in the model, gross, yes!
+      # if(species[s] == "cod_PA") 
+      # {
+      if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+      {
+        eras.p <- unique(dat$years_3)
+        num.eras.p <- length(eras.p)
+        tmp <- NULL
+        dat <- dat %>% dplyr::select(comldepth,sst_avg,SEDNUM,X,Y,years_3,response,year)
+        dat$years_5 <- NA
+        # Turn the Sediment numbers into a factor
+        dat$SEDNUM[dat$SEDNUM %in% c(2,5,6,8,9)] <- NA
+        dat$fSEDNUM <- as.factor(dat$SEDNUM)
+        dat$years_3 <- as.factor(dat$years_3)
+        eras <- as.numeric(dat$years_3)
+      } else
+      {
+        eras.p <- unique(dat$years_5)
+        num.eras.p <- length(eras.p)
+        tmp <- NULL
+        dat <- dat %>% dplyr::select(SEDNUM,comldepth,sst_avg,X,Y,years_5,response,year)
+        dat$years_5 <- as.factor(dat$years_5)
+        eras <- as.numeric(dat$years_5)
+        dat$years_3 <- NA
+        # Turn the Sediment numbers into a factor
+        dat$SEDNUM[dat$SEDNUM %in% c(2,5,6,8,9)] <- NA
+        dat$fSEDNUM <- as.factor(dat$SEDNUM)
+      } #end the else 
+      
     # Lets log transform depth and chl_rg, then center depth, chl_rg and sst_avg, also make SEDNUM a factor
     dat$depth_log <- log(-dat$comldepth)
     dat$depth_cen <-  dat$depth_log - mean(dat$depth_log) # Log transform should help with issues related to skew of the depth data.
     dat$sst_avg_cen <- scale(dat$sst_avg)
 
-    # There really isn't enough data for 2,5,6,8,9, so I am going to exclude those from the analysis for the moment.
-    # The 5 groups represent around 5% of the total data (~450 samples between the 5 levels) .
-     # I wan the year group to be a categorical variable.
-    dat$years_5 <- as.factor(dat$years_5)
-    dat$years_3 <- as.factor(dat$years_3) # I won't run the 3 year era models unless the 5 years are better than the 10 years.
+  
     # Get the location of our data...
     loc <- cbind(dat$X,dat$Y)
     #We also need to decide Observation Likelihood
@@ -2070,21 +2126,35 @@ for(s in 1:num.species)
     # 'canonical' link (to likely mis-use stats terminology) for the beta and binomial distributions.
     control.fam = list(control.link=list(model="logit"))
     # Now the 3 and 5 year model
-    if(st.mods[st] == 5) eras <- as.numeric(dat$years_5)
-    if(st.mods[st] == 3) eras <- as.numeric(dat$years_3)
     
     era.names <- unique(eras)
     n.eras <- length(unique(eras))
-    if(st.mods[st] == 5)A.era <- inla.spde.make.A(mesh, loc,repl = eras)
-    if(st.mods[st] == 3) A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
     
+    
+    if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+    {
+      A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras) # 3 year models
+    } else {A.era <- inla.spde.make.A(mesh, loc,repl = eras)} # 5 year models
+    #if(species[s] == "yt_PA") A.era <- inla.spde.make.A(mesh, loc,group = eras,n.groups =n.eras)
+    
+    # While I have my range for my spatial priors I don't have my sigma or the probabilites for the prirors
+    # The priors here can be pretty informative, the SPDE approximation improves if the corrleation length (i.e. roughly the range) of the process
+    # is similar, but larger, than the maximum edge length ofthe mesh
+    # so here we define our spde
+    range <- range.gf
     spde <- inla.spde2.pcmatern(mesh,    
                                 prior.sigma=c(sigma,s.alpha), # The probabiliy that the marginal standard deviation (first number) is larger than second number
                                 prior.range=c(range,r.alpha)) # The Meidan range and the probability that the range is less than this...
+    
     # and now we define the spatio-temporal random field.  I want to use
     # group of the 3 year era so that I can make the temporal field be an AR1 process.
-    if(st.mods[st] == 5) w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.rep = n.eras)
-    if(st.mods[st] == 3) w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.group = n.eras)
+    #if(species[s] == "cod_PA") 
+    if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall') 
+    {
+      w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.group = n.eras)
+    } else {w.index <- inla.spde.make.index(name = 'w',n.spde = spde$n.spde,n.rep = n.eras)}
+    
+  
     # Zuur never talks about this puppy I don't think, it is a penalised complexity prior but I'm not sure what for, Zuur only
     # discusses these in terms of the PCP's of the spatial field, this is a prior for precision, see inla.doc("pc.prec")
     # certainly isn't entirely clear to me!
@@ -2094,11 +2164,26 @@ for(s in 1:num.species)
     #dat$chl_rg_cen_g <- inla.group(dat$chl_rg_cen,n=100)
     dat$sst_avg_cen_g <- inla.group(dat$sst_avg_cen,n=100)
     options(na.action='na.pass')# Need to do this so that the model matrix retains the NA's in it.
-    X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g , data = dat)
-    # And then make a covariate matrix
-    X <- data.frame(depth =        X.matrix[,1],
-                    sst   =        X.matrix[,2])
+    if(species[s] == "cod_PA")
+    {
+      X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g , data = dat)
+      
+      # And then make a covariate matrix
+      X <- data.frame(depth =        X.matrix[,1],
+                      sst   =        X.matrix[,2])
+    }
     
+    if(species[s] == "yt_PA")
+    {
+      X.matrix <- model.matrix(~ 0+ depth_cen_g +  sst_avg_cen_g + fSEDNUM, data = dat)
+      
+      # Our matrix for the yt models...
+      X <- data.frame(depth =        X.matrix[,1],
+                      sst   =        X.matrix[,2],
+                      fsed_3     =   X.matrix[,3],
+                      fsed_4     =   X.matrix[,4])
+    }    # And then make a covariate matrix
+
     # The new fangled stacks
     stk.e = inla.stack(tag="est",
                        data=list(y = dat$response[dat$year <=2016], link=1L),
@@ -2128,47 +2213,44 @@ for(s in 1:num.species)
     
     # Both cod and yt go with the mod 1 that is the intercept model 
     
-    # For yellowtail toss we'll use these models for comparison
-    if(species[s] == "yt_PA")
+    if(species[s] == 'yt_PA' && surveys[i] != 'nmfs-fall')
     {
-      if(st.mods[st] == 3)
+      if(m == 1) model <-  y ~ 0 + intercept + f(w,model=spde,group = w.group,control.group = list(model = 'iid'))
+      if(m == 2) 
       {
         model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
-          f(sst , model = "rw1", hyper = hyp.rw2)   + 
-          f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
-        mod.name <- "depth_sst_yt"
+        f(sst , model = "rw1", hyper = hyp.rw2)  + 
+        fsed_3 + fsed_4 +
+        f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
       }
       
-      if(st.mods[st] == 5)         
+    } else { # This gets us the 5 year yellowtail model for the fall.
+      if(m ==1) model <- y ~ 0 + intercept + f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+      
+      if(m ==2)
       {
-        model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+      model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
+        f(sst , model = "rw1", hyper = hyp.rw2)  + 
+        fsed_3 + fsed_4 +
+        f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
+      } # end m == 2
+    } # end if(species[s] == "yt_PA" && st.mods[st] == 3)
+    # 
+    # ANd this is what we want for the cod models.#
+    if(species[s] == 'cod_PA')
+    {
+      if(m ==1)  model <- y ~ 0 + intercept + f(w,model=spde,replicate = w.repl)
+      if(m ==2)
+      {
+        model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  +
           f(sst , model = "rw1", hyper = hyp.rw2)  +
           f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
-        mod.name <- "depth_sst_yt"
-      } # end  if(st.mods[st] == 3) 
-      
-    } # end if(species[s] == "yt_PA")
-    
-    if(species[s] == "cod_PA")
-    {
-      if(st.mods[st] == 5)
-      {
-        model <-  y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
-          f(sst , model = "rw1", hyper = hyp.rw2)  + 
-          f(w,model=spde,replicate = w.repl) # The w.repl is found inside w.index.X
-        mod.name <- "depth_sst_cod"
-      }
-      if(st.mods[st] == 3)
-      {
-        model <- y ~ 0 + intercept + f(depth , model = "rw1", hyper = hyp.rw2)  + 
-          f(sst , model = "rw1", hyper = hyp.rw2)   + 
-          f(w,model=spde,group = w.group,control.group = list(model = 'iid')) # The w.repl is found inside w.index.X
-        mod.name <- "depth_sst_cod"
       }
     }
     
-    
-    run.name <- paste0(species[s],"_model_",mod.name,"_predict_2017_2020_field_",st.mods[st])
+    if(m == 1) run.name <- paste0(species[s],"_int_model_predict_2017_2020_field_",surveys[i])
+    if(m ==2) run.name <- paste0(species[s],"_full_model_predict_2017_2020_field_",surveys[i])
+    print(paste("Model run started at ",Sys.time()))
     # Now we run the models
     r.out <- inla(model, family=fam, data = inla.stack.data(stk),
                   control.predictor=list(A=inla.stack.A(stk)),
@@ -2242,15 +2324,19 @@ for(s in 1:num.species)
     
     # Stick a print in here so we know this is moving forward
     print(paste(run.name,"finished up at", format(Sys.time(),"%H:%M")))
+    save.image(paste0(direct.proj,"Results/INLA_model_NEW_temp_predict_2017_2019.RData",species[s],"_",surveys[i],".RData"))
+    
+    
     # Write a message to the ESS so I can see progress remotely....
     #fileConn<-file(paste0(direct.proj,"Results/status.txt"))
     #writeLines(messy, fileConn)
     #close(fileConn)
-  } # end models
-} # end species
+    } # End the m loop for intercept and full models
+  } # end survey loop
+} # end species loop
 
 
-#save.image(paste0(direct.proj,"Results/INLA_model_predict_2017_2019.RData"))
+save.image(paste0(direct.proj,"Results/INLA_model_NEW_predict_2017_2019.RData"))
 
 
 #load(paste0(direct.proj,"Results/INLA_model_predict_2017_2019.RData"))

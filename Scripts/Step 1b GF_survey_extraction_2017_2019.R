@@ -128,6 +128,7 @@ rv.key.dat.sf <- st_as_sf(rv.key.dat, coords = c("lon","lat"),crs = 4326)
 
 #save(rv.key.dat,nmfs.key.dat,file = "D:/to_sky/2017_2020/RV_and_NMFS_survey_dat.RData" )
 #load(file = "D:/to_sky/2017_2020/RV_and_NMFS_survey_dat.RData" )
+
 # Lots of extra's we need to remove for the nmfs data
 ggplot(nmfs.key.dat.sf) + geom_sf() + facet_wrap(~year)
 # DFO coverage less than spectacular on US side in 2017-2018, but data ready to be 'predicted on.
@@ -138,9 +139,12 @@ ggplot(rv.key.dat.sf) + geom_sf() + facet_wrap(~year)
 
 # Bring in the 
 direct.proj <- "d:/NAS/Projects/GB_time_area_closure_SPERA/"; dir.tmp <- direct.proj
+#load(paste0(direct.proj,"Data/2017_2020_data/RV_and_NMFS_survey_dat.RData"))
 load(paste0("D:/Github/Paper_2_SDMs/data/Prediction_mesh.RData"))
 load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/SST_and_Depth_covariates_and_boundary_for_prediction.RData"))
+load(paste0(direct.proj,"Data/Depth_SST_and_Sed.RData"))
+
 
 new.dat <- rbind(nmfs.key.dat,rv.key.dat)
 new.dat$unique_set_ID <- paste(new.dat$survey,new.dat$year,new.dat$tow,new.dat$station,sep="_")
@@ -153,6 +157,9 @@ new.dat.clp <- st_intersection(new.dat.sf,st_transform(mesh.grid,crs = 4326))
 new.dat.final <- st_transform(new.dat.clp,crs=32619)
 sst.sf <- st_transform(sst.sf,crs=32619)
 depth.sf <- st_transform(depth.sf,crs= 32619)
+sed.sf <- st_transform(sed,crs=32619)
+sed.sf <- sed.sf %>% dplyr::select(-AREA,-PERIMETER)
+names(sed.sf) <- tolower(names(sed.sf))
 locs <- st_coordinates(new.dat.final)
 # Need this for INLA...
 new.dat.final$X <- locs[,1]
@@ -160,12 +167,14 @@ new.dat.final$Y <- locs[,2]
 
 # Now we need to add in the sst covariate data and we're ready to rock.
 
-ggplot(sst.sf) + geom_sf()
+#ggplot(sst.sf) + geom_sf()
 
 new.dat.final <- st_intersection(new.dat.final,sst.sf)
 new.dat.final$sst_avg <- new.dat.final$Band_1
 new.dat.final <- st_intersection(new.dat.final,depth.sf)
 new.dat.final$comldepth <- new.dat.final$Band_1.1
+new.dat.final <- st_intersection(new.dat.final,sed.sf)
+new.dat.final$SEDNUM <- new.dat.final$sednum
 # Now do the same with depth
 # These are the maximum years_3 and years_5 era's, recall these are the same for RV and NMFS as it was easier if the "Era" was the same for NMFS and RV so RV picks it up
 # From the NMFS numbering.
@@ -174,7 +183,7 @@ new.dat.final$years_5 <- 10
 
 
 # And now save this final object which we can use directly in our INLA modelling (Step 6, Section 7)
-#save(new.dat.final,file = "D:/to_sky/2017_2020/Survey_data_with_covars_2017_2020.RData" )
+#save(new.dat.final,file = "D:/to_sky/Survey_data_with_ALL_covars_2017_2020.RData" )
 
 
 ########################## SECTION GINI SECTION GINI SECTION GINI SECTION GINI SECTION GINI SECTION GINI SECTION GINI SECTION GINI ########################
