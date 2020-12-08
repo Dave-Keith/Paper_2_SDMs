@@ -58,6 +58,7 @@ library(rosettafish)
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Assessment_fns/master/Maps/pectinid_projector_sf.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Dave-Keith/Assessment_fns/master/Maps/convert_inla_mesh_to_sf.R",ssl.verifypeer = FALSE)))
 eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/centre_of_gravity.R",ssl.verifypeer = FALSE)))
+eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/add_alpha_function.R",ssl.verifypeer = FALSE)))
 
 #eval(parse(text =getURL("https://raw.githubusercontent.com/Mar-scal/Assessment_fns/master/Maps/convert_inla_mesh_to_sf.R",ssl.verifypeer = FALSE)))
 #source("D:/Github/Offshore/Assessment_fns/DK/Maps/convert_inla_mesh_to_sf.R")
@@ -674,11 +675,12 @@ tmp <- cog.n.area[grep("16",cog.n.area$yrs),]
 tmp$yrs <- "2016"
 rownames(tmp) <- paste0(rownames(tmp),".1")
 cog.n.area.4.plt <- bind_rows(cog.n.area,tmp)
+cols <- addalpha(c("black", "blue","darkgreen"),alpha=0.5) 
 plt.area <- ggplot(cog.n.area.4.plt) + geom_step(aes(x = as.numeric(substr(yrs,1,4)), y = as.numeric(area), group = survey,color= survey),lwd=1.5) +  
                                  facet_wrap(~ species , scales = 'free_x') + ylab("Area (km²)") + xlab("")+# Get the squared with Alt + 0178.. bam
                                  scale_y_continuous(breaks = seq(0,40000,2500)) + 
                                  scale_x_continuous(breaks = seq(1970,2020,5)) +
-                                 scale_color_manual(values = c("black", "blue","darkgreen")) 
+                                 scale_color_manual(values = cols)
 
 
 
@@ -741,7 +743,9 @@ tmp <- area.era.pred[grep("16",area.era.pred$yrs),]
 tmp$yrs <- "2016"
 rownames(tmp) <- paste0(rownames(tmp),".1")
 area.era.pred.4.plt <- bind_rows(area.era.pred,tmp)
-plt.area.can.vs.us <- ggplot(area.era.pred.4.plt) + geom_step(aes(x=as.numeric(substr(yrs,1,4)), y = tot.area,color = model,group=model),lwd=1.5) + facet_wrap(~species + country ) + scale_color_manual(values = c("black", "blue","darkgreen")) +  scale_x_continuous(breaks = seq(1970,2020,5)) + 
+cols <- addalpha(c("black", "blue","darkgreen"),alpha=0.5) 
+
+plt.area.can.vs.us <- ggplot(area.era.pred.4.plt) + geom_step(aes(x=as.numeric(substr(yrs,1,4)), y = tot.area,color = model,group=model),lwd=1.5) + facet_wrap(~species + country ) + scale_color_manual(values =cols) +  scale_x_continuous(breaks = seq(1970,2020,5)) + 
   xlab("")  +  ylab(paste0(en2fr("Area",french,case="title"), " (km²)")) + theme(legend.title = element_blank())
 
 save_plot(paste0(direct.proj,"Results/Figures/Area_can_vs_us_ts_high.tiff"),plt.area.can.vs.us,base_width =11,base_height =7,units='in')
@@ -761,14 +765,15 @@ null.rmse <- NA
 set.seed(123)
 for(i in 1:10000) null.rmse[i] <- RMSE(runif(50,0,1),rbinom(50,1,0.5)) # using 50 as this is roughly number of stations, but # doesn't actually matter.
 mn.crap.rmse <- mean(null.rmse)
+cols <- addalpha(c("blue", "black"),alpha=0.5) 
 
 fold.res$model.id <- factor(fold.res$model.id, levels = c("Intercept","Depth","SST","Depth + SST"))
 mn.folds <- ggplot(fold.res) + geom_point(aes(y = mn, x= model.id,colour = type),position = position_dodge(width=0.3)) + ylab("Mean Error") + xlab("")+
-                               facet_wrap(~species,scales = 'free_x')+ scale_color_manual(values = c("blue","black")) +
+                               facet_wrap(~species,scales = 'free_x')+ scale_color_manual(values = cols) +
                                theme(legend.title = element_blank())
 
 rmse.folds <- ggplot(fold.res) + geom_point(aes(y = rmse, x= model.id,colour = type),position = position_dodge(width=0.3)) + ylab("RMSE") + xlab("")+
-                                 facet_wrap(~species,scales = 'free_x')  + scale_color_manual(values = c("blue","black")) +
+                                 facet_wrap(~species,scales = 'free_x')  + scale_color_manual(values = cols) +
                                  geom_hline(yintercept = mn.crap.rmse,linetype = 2,color = 'red') + theme(legend.title = element_blank()) 
                                 
 plt.folds <- plot_grid(mn.folds,rmse.folds,nrow=2)
@@ -788,9 +793,11 @@ all.resids$species[all.resids$species == 'cod_PA'] <- "Cod"
 pred.17.19 <- all.resids %>%  group_by(species,type,year,field) %>% summarise(mn = mean(resid), rmse = RMSE(fitted,response))
 pred.17.19$field[pred.17.19$field ==3] <- "3 year field"
 pred.17.19$field[pred.17.19$field ==5] <- "5 year field"
+cols <- addalpha(c("blue","black"),alpha=0.5) 
+
 plt.pred.17.19 <- ggplot(pred.17.19) + geom_line(aes(x=year,y = rmse,color = type),size=1.5) + xlab("") + ylab("RMSE") + 
                                        facet_wrap(~ species + field) + geom_hline(yintercept = mn.crap.rmse,linetype = 2,color = 'red') +
-                                       theme(legend.title = element_blank()) + scale_color_manual(values = c("blue","black"))
+                                       theme(legend.title = element_blank()) + scale_color_manual(values = cols)
 
 save_plot(paste0(direct.proj,"Results/Figures/prediction_2017_2019.tiff"),plt.pred.17.19,base_width =12,base_height =8,units='in')
 save_plot(paste0(direct.proj,"Results/Figures/prediction_2017_2019.png"),plt.pred.17.19,base_width =12,base_height =8,units='in')
@@ -812,8 +819,9 @@ save_plot(paste0(direct.proj,"Results/Figures/Gini_cum_prop_figures.tiff"),plt.g
 save_plot(paste0(direct.proj,"Results/Figures/Gini_cum_prop_figures.png"),plt.gini.cum.prop,base_width =12,base_height =12,units='in')
 gini.cum.prop.plt <- paste0(direct.proj,"Results/Figures/Gini_cum_prop_figures.png")
 
+cols <- addalpha(c("forestgreen", "black"),alpha=0.5) 
 plt.gini.index <- ggplot(gini.surveys) + geom_line(aes(x = year, y = Gini,color=species))  + theme(legend.title = element_blank()) +
-  facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index") + scale_color_manual(values = c("forestgreen","black"))
+  facet_wrap(~survey) + ylim(c(0,1)) + xlab("") + ylab("Gini Index") + scale_color_manual(values = cols)
 
 save_plot(paste0(direct.proj,"Results/Figures/Gini_index.tiff"),plt.gini.index,base_width =12,base_height =6,units='in')
 save_plot(paste0(direct.proj,"Results/Figures/Gini_index.png"),plt.gini.index,base_width =12,base_height =6,units='in')
