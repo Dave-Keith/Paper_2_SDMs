@@ -2303,24 +2303,24 @@ for(s in 1:num.species)
     #res[[mod.names[m]]]$model <- mod.names[m]
     mod.output.st.yr[[run.name]] <- mo.out
     mod.output.st.yr[[run.name]]$model <- run.name
-    mod.output.st.yr[[run.name]]$model.id <- mod.name
+    mod.output.st.yr[[run.name]]$model.id <- ifelse(m==1,'intercept','full')
     mod.output.st.yr[[run.name]]$species <- species[s]
     # mod.output.st.yr[[run.name]]$fold <- fd
-    mod.output.st.yr[[run.name]]$field <- st.mods[st]
+    mod.output.st.yr[[run.name]]$field <- ifelse(all(is.na(dat$years_3)),5,3)
     
     mod.diagnostics.st.yr[[run.name]] <- md.out
     mod.diagnostics.st.yr[[run.name]]$model <- run.name
-    mod.diagnostics.st.yr[[run.name]]$model.id <- mod.name
+    mod.diagnostics.st.yr[[run.name]]$model.id <-ifelse(m==1,'intercept','full')
     mod.diagnostics.st.yr[[run.name]]$species <- species[s]
     #mod.diagnostics.st.yr[[run.name]]$fold <- fd
-    mod.diagnostics.st.yr[[run.name]]$field <- st.mods[st]
+    mod.diagnostics.st.yr[[run.name]]$field <-ifelse(all(is.na(dat$years_3)),5,3)
     
     pred.res.st.yr[[run.name]] <- p.out
     pred.res.st.yr[[run.name]]$model <- run.name
-    pred.res.st.yr[[run.name]]$model.id <- mod.name
+    pred.res.st.yr[[run.name]]$model.id <- ifelse(m==1,'intercept','full')
     pred.res.st.yr[[run.name]]$species <- species[s]
     #pred.res.st.yr[[run.name]]$fold <- fd
-    pred.res.st.yr[[run.name]]$field <- st.mods[st]
+    pred.res.st.yr[[run.name]]$field <- ifelse(all(is.na(dat$years_3)),5,3)
     
     # Stick a print in here so we know this is moving forward
     print(paste(run.name,"finished up at", format(Sys.time(),"%H:%M")))
