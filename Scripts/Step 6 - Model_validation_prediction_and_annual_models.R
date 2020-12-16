@@ -2336,26 +2336,43 @@ for(s in 1:num.species)
 } # end species loop
 
 
-save.image(paste0(direct.proj,"Results/INLA_model_NEW_predict_2017_2019.RData"))
+#save.image(paste0(direct.proj,"Results/INLA_model_NEW_predict_2017_2019.RData"))
 
 
-#load(paste0(direct.proj,"Results/INLA_model_predict_2017_2019.RData"))
+#load(paste0(direct.proj,"Results/INLA_model_NEW_predict_2017_2019.RData"))
 # Now we can see how well the field was estimated in 2017-2019, really we'll want to look year by year to see if the predictions
 # deteriorate over time
 
 # Get the X and Y coordinates on the cod models...
-pred.res.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_5$year <- dat.cod$year[dat.cod$year >2016]
-pred.res.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_3$year <- dat.cod$year[dat.cod$year >2016]
+n.mods <- length(pred.res.st.yr)
+mods <- names(pred.res.st.yr)
 
-# Now the YT models....
-pred.res.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_5$year <- dat.yt$year[dat.yt$year >2016]
-pred.res.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_3$year <- dat.yt$year[dat.yt$year >2016]
-# Now the same for the modeled data...
-mod.output.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_3$year <- dat.cod$year[dat.cod$year <=2016]
-mod.output.st.yr$cod_PA_model_depth_sst_cod_predict_2017_2020_field_5$year <-  dat.cod$year[dat.cod$year <=2016]
-# Now the YT models....
-mod.output.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_5$year <- dat.yt$year[dat.yt$year <=2016]
-mod.output.st.yr$yt_PA_model_depth_sst_yt_predict_2017_2020_field_3$year <-  dat.yt$year[dat.yt$year <=2016]
+# Need to add the year to each of these results.
+
+for(i in 1:n.mods)
+{
+    if(grepl('spring',mods[i])) 
+    {
+      pred.res.st.yr[[mods[i]]]$year <- dat.val.new %>% dplyr::filter(survey == 'nmfs-spring' & year > 2016) %>% dplyr::select(year)
+      pred.res.st.yr[[mods[i]]]$survey <- 'Spring'
+      mod.output.st.yr[[mods[i]]]$year <- dat.val.new %>% dplyr::filter(survey == 'nmfs-spring' & year <= 2016) %>% dplyr::select(year)
+      mod.output.st.yr[[mods[i]]]$survey <- 'Spring'
+    }
+    if(grepl('RV',mods[i])) 
+    {
+      pred.res.st.yr[[mods[i]]]$year <- dat.val.new %>% dplyr::filter(survey == 'RV' & year > 2016) %>% dplyr::select(year)
+      pred.res.st.yr[[mods[i]]]$survey <- 'Winter'
+      mod.output.st.yr[[mods[i]]]$year<- dat.val.new %>% dplyr::filter(survey == 'RV' & year <= 2016) %>% dplyr::select(year)
+      mod.output.st.yr[[mods[i]]]$survey <- 'Winter'
+    }
+    if(grepl('fall',mods[i])) 
+    {
+      pred.res.st.yr[[mods[i]]]$year <- dat.val.new %>% dplyr::filter(survey == 'nmfs-fall' & year > 2016) %>% dplyr::select(year)
+      pred.res.st.yr[[mods[i]]]$survey <- 'Fall'
+      mod.output.st.yr[[mods[i]]]$year<- dat.val.new %>% dplyr::filter(survey == 'nmfs-fall' & year <= 2016) %>% dplyr::select(year)
+      mod.output.st.yr[[mods[i]]]$survey <- 'Fall'
+    }
+}
 
 pred.res <- do.call('rbind',pred.res.st.yr)
 pred.res$type <- 'prediction'
@@ -2364,18 +2381,19 @@ mod.res$type <- 'residual'
 pred.res$pred <- inv.logit(pred.res$pred)
 pred.res$pred.err <- pred.res$response - pred.res$pred 
 # Combine them..
-mod.res <- mod.res %>% dplyr::select(fitted,resid,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type)
-pred.res <- pred.res %>% dplyr::select(pred,pred.err,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type)
-names(pred.res) <- c("fitted","resid","response","dep","sst","depth","sst_avg","years_3",'years_5',"X","Y","model","model.id","species","field","year","type")
+mod.res <- mod.res %>% dplyr::select(fitted,resid,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type,survey)
+pred.res <- pred.res %>% dplyr::select(pred,pred.err,response,dep,sst,depth,sst_avg,years_3,years_5,X,Y,model,model.id,species,field,year,type,survey)
+names(pred.res) <- c("fitted","resid","response","dep","sst","depth","sst_avg","years_3",'years_5',"X","Y","model","model.id","species","field","year","type",'survey')
 # These 2 steps will go away once I get the new model runs where I tidy this all up...
 pred.res <- st_as_sf(pred.res,coords = c("X","Y"), crs= 32619,remove=F)
 mod.res <- st_as_sf(mod.res,coords = c("X","Y"), crs= 32619,remove=F)
-all.resids <- rbind(mod.res,pred.res)
+all.resids <- bind_rows(mod.res,pred.res)
+all.resids$year <- as.numeric(unlist(all.resids$year)) #Clean up the year object in there...
 
 sd.pred <- pred.res %>% group_by(model,year) %>% summarise(sd=sd(resid),rmse = RMSE(fitted,response))
 sd.mod <- mod.res %>% group_by(model,year) %>% summarise(sd=sd(resid),rmse = RMSE(fitted,response))
 
-#save(all.resids,file = paste0(direct.proj,"Results/INLA_2017_2019_prediction_error_summary.RData"))
+#save(all.resids,file = paste0(direct.proj,"Results/INLA_2017_2019_NEW_prediction_error_summary.RData"))
 
 # This simulates entirely random data between 0 and 1, so if I had no ability to predict the future this is what we'd see...
 null.rmse <- NA
@@ -2389,8 +2407,8 @@ all.resids %>% filter(year > 2013) %>% group_by(species,year) %>% summarise(mean
 
 
 # Now make some figures...
-ggplot(pred.res) + geom_sf(aes(colour = pred.err)) + facet_wrap(~model) + scale_colour_viridis()
-ggplot(pred.res) + geom_histogram(aes(x=pred.err,fill=as.factor(year))) + facet_wrap(~model)
+ggplot(pred.res) + geom_sf(aes(colour = resid)) + facet_wrap(~model) + scale_colour_viridis()
+ggplot(pred.res) + geom_histogram(aes(x=resid,fill=as.factor(year))) + facet_wrap(~model) 
 ggplot(mod.res) + geom_histogram(aes(x=resid,fill=as.factor(year))) + facet_wrap(~model)
 
 ggplot(all.resids) + geom_histogram(aes(x=resid,after_stat(density),fill= type)) + facet_wrap(~model)
