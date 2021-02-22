@@ -1,0 +1,44 @@
+<!-- The following code should appear at the beginning of the first appendix.
+After that, all subsequent sections will be turned into appendices. -->
+
+`r if(knitr:::is_latex_output()) '\\Supplements'`
+
+`r if(!knitr:::is_latex_output()) '# (Supplement) Supplement {-}'`
+
+# THE FIRST SUPPLEMENT {#ref:first-sup}
+
+```{r gini-index, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Gini Index "}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(gini.index.plt)
+```
+
+
+```{r diag-1-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Initial stage of forward model selection using each of the environmental covariates individually.  This model selection was done using a static random field. Blue dashed line represents 2 WAIC units larger than the preferred model, the red dashed line is 10 WAIC units larger than the preferred model WAIC. "}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.single.fe.plt)
+```
+
+```{r diag-2-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Stage 2 of model selection including additive models with 2 covariates based on the covariates identified in the initial model selection stage. These models were compared using the 10-year random field models. Blue dashed line represents 2 WAIC units larger than the preferred model, the red dashed line is 10 WAIC units larger than the preferred model WAIC."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.2.covars.fe.plt)
+```
+
+```{r diag-3-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Final stage of covariate model selection which includes model with up to 3 covariate terms based on models selected at stage 2. Blue dashed line represents 2 WAIC units larger than the preferred model, the red dashed line is 10 WAIC units larger than the preferred model WAIC."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.3.covars.fe.plt)
+```
+
+```{r diag-rf, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Model selection comparing the random fields models.  For cod the model used is Dep + SST for all of the random fields.  For Yellowtail the 5 and 10 year random fields were compared using the Dep + SST model, while the 5 and 3 fields were compared using the slightly preferred Dep + SST + Sed model. Blue dashed line represents 2 WAIC units larger than the preferred model, the red dashed line is 10 WAIC units larger than the preferred model WAIC."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(diag.waic.rf.plt)
+```
+
+```{r SST-Dep-Sed, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Average Sea Surface Temperature on Georges Bank (GB) from 1997-2008 (SST in °C) in the top panel, GB bathymetry (depth in meters) in the center panel, and GB sediment type in the bottom panel."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(sst_depth_spatial.plt)
+```
+
+
+# THE SECOND APPENDIX, FOR FUN {#ref:second-sup}
+
+More content.

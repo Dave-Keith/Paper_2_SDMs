@@ -1,0 +1,51 @@
+\clearpage
+
+# FIGURES {#ref-figs}
+
+<br>
+
+```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank (GB) study area.  Points represent the sample locations for each of the three surveys and the orange outline represets the core region of GB included in these analyses (42,000 km²).  In the U.S. the blue polygon is Closed Area I (CA I) and the white polygon is Closed Area II (CA II). In Canada the small gold bordered cells (each cells covers an area of approximately 42.7 km²) represent areas which have been included in either the cod or yellowtail closures at least once.  Some of the cells have been part of both closures and not all cells are closed each year; darker fill indicates cells which have been closed more frequently. The red line indicates the Canadian exclusive economic zone (EEZ)."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(over.plt)
+```
+\clearpage
+```{r Mesh, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Delaunay triangular mesh used for the spatial fields mesh. The mesh contains 6610 vertices."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(mesh.plt)
+```
+\clearpage
+```{r cod-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Fixed effects for cod from each survey, top row is the depth covariate effect, bottom row is the SST effect. Results transformed to the probability scale and the blue shaded region represents the 95% credible interval."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(cod.fe.plt)
+```
+\clearpage
+```{r yt-fe, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Fixed effects for yellowtail from each survey, the top row is the depth covariate effect, middle row is the SST effect and the bottom row is the effect of sediment type. Results transformed to the probability scale, and the blue shaded region and the error bars represent the 95% credible intervals. The winter and spring results use a 3 year random field while the fall results are for the preferred 5 year random field model. "}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(yt.fe.plt)
+```
+\clearpage
+```{r cog-hep, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Center of Gravity (COG) for the high EP areas for cod (top panel) and yellowtail (bottom panels) in the Winter (left), Spring (center), and Fall (right) using the preferred models.  Blue lines indicate ±3 standard deviation units from the mean COG. Labels indicate the years associated with each era and the red line is border between the U.S. and Canada."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(cog.plt)
+```
+\clearpage
+```{r area-hep, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Time series of the total area on GB classified as high EP for each of the three surveys using the preferred models.  The cod time series is on the left and the yellowtail on the right.  The black line represents the Winter trend, the Blue line is the Spring trend and the red line is the Fall trend.  "}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(area.plt)
+```
+\clearpage
+```{r folds, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Results of 5 fold cross validation analyses. Top panels represents the mean error for each of the three covariate models tested for cod and yellowtail. Blue points represent the prediction error from the testing dataset, while the black points are the residuals from the training dataset. The bottom panels are the Root Mean Squared Error (RMSE) for these models.  The dashed line represents the RMSE for randomly generated data and represents the RMSE for a model with no predictive ability. All models use the 5 year random field due to computational constraints."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(folds.plt)
+```
+\clearpage
+```{r pred-17-19, echo=FALSE,out.width="100%",dpi=200,fig.cap = "The residual Root Mean Squared Error for the model is shown in black, while the blue lines represent the prediction RMSE for data in years 2017, 2018, and 2019. The models compared were a model with no covariates (intercept + random field) represented with a dashed line and a model which includes the additive SST and Depth covariates along with the random field represented with the solid line.  The cod results are in the top row and use a 5 year random field. The yellowtail results are in the bottom row and use a 3 year random field for the Winter and Spring andd the 5 year random field for the Fall. The red dot-dash line represents the RMSE for randomly generated data and represents the RMSE for a model with no predictive ability."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(pred.17.19.plt)
+```
+
+\blandscape
+\elandscape
+\clearpage
+
+
