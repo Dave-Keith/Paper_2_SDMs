@@ -1,4 +1,28 @@
 
-SDM_paper_draft_cache/
 
-SDM_paper_draft_cache/docx/__packages
+.Rproj.user
+.Rhistory
+.RData
+.DS_Store
+
+
+csas-style
+knitr-cache-docx
+knitr-cache-pdf
+knitr-cache-tex
+knitr-figs-docx
+knitr-figs-pdf
+reference-materials
+models*
+
+*.aux
+*.jpg
+*.knit.md
+*.log
+*.rda
+*.rds
+*.Rproj
+*.sty
+*.upa
+*.utf8.md
+

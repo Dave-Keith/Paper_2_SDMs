@@ -6,9 +6,6 @@
 # Decide what you want "Hi probablity" to be for this analysis..
 hi.prob <- 0.75
 
-# I need to make the mesh.grid a nicer sf object, unclear yet to me why this is helpful...
-tst <- as_Spatial(mesh.grid)
-mesh.grid <- st_as_sf(tst)
 
 # Now I want to make the prediction field from the new prediction models
 mod.names <- names(pred.output.pred)
@@ -70,6 +67,9 @@ pred.res <- do.call("rbind",pred.res) # This is a useful general purpose object 
 ################################
 ###  Figures for the paper  ###
 ################################
+
+# Plane old map
+bp <-  pecjector(area="GOM",plot=F,repo = 'github',add_layer = list(land ='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),c_sys = 32619,buffer = 0.2) + theme_map()
 
 # Lets get a basemap set up for the rest of the show.
 bp.zoom <- pecjector(c_sys = 32619,area = list(x=c(580000,780000), y = c(4530000,4680000),crs = 32619),add_layer = list(land='grey',eez = 'eez',nafo = 'main',scale.bar = 'tl'),plot=F) #+ theme_map()
@@ -769,6 +769,675 @@ range.winter.yt.mn.ci <- paste0(range.winter.yt.mn," (95% CI:",range.winter.yt.l
 
 ```
 
+
+```{r cod-random-field-code,t, echo=F, include=F,cache=T}
+# Now make the 6 random fields we want and carry on...
+rf.winter.cod <- rand.field.pred$`cod_PA RV_survey`
+rf.spring.cod <- rand.field.pred$`cod_PA nmfs-spring_survey`
+rf.fall.cod <- rand.field.pred$`cod_PA nmfs-fall_survey`
+
+
+eras <- factor.2.number(unique(pred.output.pred$`cod_PA RV_survey`$years_5))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.winter.cod$ID
+rf.winter.cod <- merge(mesh.tmp,rf.winter.cod, by = "ID")
+rf.winter.cod$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.winter.cod$era[count1:count2] <- eras[i]
+}
+
+# Set the color universally for all these figures
+col <- addalpha(pals::viridis(101),1)
+col.sd <- addalpha(pals::magma(101),1) # Different color for the standard deviation figures
+
+brk <- seq(-11,3,by=1)
+brk.sd <-  seq(0.4,2.6,by=0.2)
+
+if(length(brk) <= 6) hgt <- unit(2,'cm')
+if(length(brk.sd) <= 6) hgt.sd <- unit(2,'cm')
+if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(3.75,'cm')
+if(length(brk.sd) > 6 & length(brk.sd) <= 12) hgt.sd <- unit(3.75,'cm')
+if(length(brk) > 12) hgt <- unit(5,'cm')
+if(length(brk.sd) > 12) hgt.sd <- unit(5,'cm')
+
+lims <- range(brk)
+lims.sd <- range(brk.sd)
+# Now all this I want to be specific for each plot I think.
+
+sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name=paste0(en2fr("Random Field",french,case='sentence',custom = rosetta_terms)))
+sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name=paste0(en2fr("Random Field",french,case='sentence',custom = rosetta_terms)))
+
+sf.sd <- scale_fill_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+sc.sd <- scale_colour_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+
+# So the cod winter plots will be...
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.winter %>% dplyr::filter(years_5 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.winter %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.winter.cod$yrs[rf.winter.cod$era==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+rf.winter.cod <- st_intersection(rf.winter.cod,clp.pred)
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.winter.cod <- bp + geom_sf(data = rf.winter.cod  ,aes(fill = mean,colour=mean))+
+facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.cod
+
+plt.rf.winter.cod.sd <- bp + geom_sf(data = rf.winter.cod  ,aes(fill = sd,colour=sd))+
+facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.cod.sd
+
+# Now do this for cod in the spring.
+
+eras <- factor.2.number(unique(pred.output.pred$`cod_PA nmfs-spring_survey`$years_5))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.spring.cod$ID
+rf.spring.cod <- merge(mesh.tmp,rf.spring.cod, by = "ID")
+rf.spring.cod$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.spring.cod$era[count1:count2] <- eras[i]
+}
+
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.spring %>% dplyr::filter(years_5 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.spring %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.spring.cod$yrs[rf.spring.cod$era==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+rf.spring.cod <- st_intersection(rf.spring.cod,clp.pred)
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.spring.cod <- bp + geom_sf(data = rf.spring.cod  ,aes(fill = mean,colour=mean))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.cod
+
+plt.rf.spring.cod.sd <- bp + geom_sf(data = rf.spring.cod  ,aes(fill = sd,colour=sd))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+
+
+
+# Now do this for cod in the fall
+eras <- factor.2.number(unique(pred.output.pred$`cod_PA nmfs-fall_survey`$years_5))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.fall.cod$ID
+rf.fall.cod <- merge(mesh.tmp,rf.fall.cod, by = "ID")
+rf.fall.cod$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.fall.cod$era[count1:count2] <- eras[i]
+}
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.fall %>% dplyr::filter(years_5 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.fall %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.fall.cod$yrs[rf.fall.cod$era==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+rf.fall.cod <- st_intersection(rf.fall.cod,clp.pred)
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.fall.cod <- bp + geom_sf(data = rf.fall.cod  ,aes(fill = mean,colour=mean))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.cod
+
+plt.rf.fall.cod.sd <- bp + geom_sf(data = rf.fall.cod  ,aes(fill = mean,colour=mean))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+
+
+# Now output the plots
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_cod.png"),plt.rf.winter.cod,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_cod.tiff"),plt.rf.winter.cod,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_cod.png"),plt.rf.spring.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_cod.tiff"),plt.rf.spring.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_cod.png"),plt.rf.fall.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_cod.tiff"),plt.rf.fall.cod,base_width =12,base_height =8,units='in',dpi=300)
+# SD plots
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_cod_sd.png"),plt.rf.winter.cod.sd,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_cod_sd.tiff"),plt.rf.winter.cod.sd,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_cod_sd.png"),plt.rf.spring.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_cod_sd.tiff"),plt.rf.spring.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_cod_sd.png"),plt.rf.fall.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_cod_sd.tiff"),plt.rf.fall.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+
+
+```
+
+
+
+```{r yt-random-field-code,t, echo=F, include=F,cache=T}
+# get the approprite random fields
+rf.winter.yt <- rand.field.pred$`yt_PA RV_survey`
+rf.spring.yt <- rand.field.pred$`yt_PA nmfs-spring_survey`
+rf.fall.yt <- rand.field.pred$`yt_PA nmfs-fall_survey`
+
+
+eras <- factor.2.number(unique(pred.output.pred$`yt_PA RV_survey`$years_3))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.winter.yt$ID
+rf.winter.yt <- merge(mesh.tmp,rf.winter.yt, by = "ID")
+rf.winter.yt$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.winter.yt$era[count1:count2] <- eras[i]
+}
+
+# Set the colors universally for all these figures
+col <- addalpha(pals::viridis(101),1)
+col.sd <- addalpha(pals::magma(101),1) # Different color for the standard deviation figures
+
+brk <- seq(-11,3,by=1)
+brk.sd <-  seq(0.4,2.6,by=0.2)
+
+if(length(brk) <= 6) hgt <- unit(2,'cm')
+if(length(brk.sd) <= 6) hgt.sd <- unit(2,'cm')
+if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(3.75,'cm')
+if(length(brk.sd) > 6 & length(brk.sd) <= 12) hgt.sd <- unit(3.75,'cm')
+if(length(brk) > 12) hgt <- unit(5,'cm')
+if(length(brk.sd) > 12) hgt.sd <- unit(5,'cm')
+
+lims <- range(brk)
+lims.sd <- range(brk.sd)
+
+
+sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name=paste0(en2fr("Random Field",french,case='sentence',custom = rosetta_terms)))
+sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name=paste0(en2fr("Random Field",french,case='sentence',custom = rosetta_terms)))
+
+sf.sd <- scale_fill_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+sc.sd <- scale_colour_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+
+# Now all this I want to be specific for each plot I think.
+
+# So the yt winter plots will be...
+#eras <- unique(rf.winter.yt$era)
+#n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.winter %>% dplyr::filter(years_3 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.winter %>% dplyr::filter(years_3 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.winter.yt$yrs[rf.winter.yt$era==n] <- yrs
+}
+# Now clip this to the appropriate area...
+rf.winter.yt <- st_intersection(rf.winter.yt,clp.pred)
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.winter.yt <- bp + geom_sf(data = rf.winter.yt  ,aes(fill = mean,colour=mean))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.yt
+
+plt.rf.winter.yt.sd <- bp + geom_sf(data = rf.winter.yt  ,aes(fill = sd,colour=sd))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.winter.yt.sd
+
+
+###### Now Spring Yellowtail
+
+# Now all this I want to be specific for each plot I think.
+
+
+eras <- factor.2.number(unique(pred.output.pred$`yt_PA nmfs-spring_survey`$years_3))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.spring.yt$ID
+rf.spring.yt <- merge(mesh.tmp,rf.spring.yt, by = "ID")
+rf.spring.yt$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.spring.yt$era[count1:count2] <- eras[i]
+}
+
+# So the yt spring plots will be...
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.spring %>% dplyr::filter(years_3 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.spring %>% dplyr::filter(years_3 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.spring.yt$yrs[rf.spring.yt$era==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+rf.spring.yt <- st_intersection(rf.spring.yt,clp.pred)
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.spring.yt <- bp + geom_sf(data = rf.spring.yt  ,aes(fill = mean,colour=mean))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.spring.yt
+
+plt.rf.spring.yt.sd <- bp + geom_sf(data = rf.spring.yt  ,aes(fill = sd,colour=sd))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.spring.yt.sd
+
+###### Now Fall Yellowtail
+
+
+eras <- factor.2.number(unique(pred.output.pred$`yt_PA nmfs-fall_survey`$years_5))
+n.eras <- length(eras)
+mesh.tmp <- st_sf(rep(st_sf(mesh.sf$vertices)$geometry,n.eras), crs = st_crs(mesh.grid))
+mesh.tmp$ID <- rf.fall.yt$ID
+rf.fall.yt <- merge(mesh.tmp,rf.fall.yt, by = "ID")
+rf.fall.yt$era <- NA
+
+# This should work it's a bit of a ugly cheat, but is quick...
+nrows <- nrow(mesh.sf$vertices)
+for(i in 1:n.eras)
+{
+  count1 <- (i-1)*nrows+1
+  count2 <- (i)*nrows
+  rf.fall.yt$era[count1:count2] <- eras[i]
+} # end for(i in 1:n.eras)
+
+# Set the color universally for all these figures
+col <- addalpha(pals::viridis(101),1)
+col.sd <- addalpha(pals::magma(101),1) # Different color for the standard deviation figures
+
+# Now all this I want to be specific for each plot I think.
+
+# So the yt fall plots will be...
+
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.fall %>% dplyr::filter(years_5 == n) %>%
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.fall %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  rf.fall.yt$yrs[rf.fall.yt$era==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+rf.fall.yt <- st_intersection(rf.fall.yt,clp.pred)
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.rf.fall.yt <- bp + geom_sf(data = rf.fall.yt  ,aes(fill = mean,colour=mean))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.fall.yt
+
+plt.rf.fall.yt.sd <- bp + geom_sf(data = rf.fall.yt  ,aes(fill = sd,colour=sd))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top")
+#plt.rf.fall.yt.sd
+
+# Now output the plots
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_yt.png"),plt.rf.winter.yt,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_yt.tiff"),plt.rf.winter.yt,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_yt.png"),plt.rf.spring.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_yt.tiff"),plt.rf.spring.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_yt.png"),plt.rf.fall.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_yt.tiff"),plt.rf.fall.yt,base_width =12,base_height =9,units='in',dpi=300)
+
+## Now for the sd plots
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_yt_sd.png"),plt.rf.winter.yt.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_winter_yt_sd.tiff"),plt.rf.winter.yt.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_yt_sd.png"),plt.rf.spring.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_spring_yt_sd.tiff"),plt.rf.spring.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_yt_sd.png"),plt.rf.fall.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/rf_fall_yt_sd.tiff"),plt.rf.fall.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+
+```
+
+
+```{r cod-prediction-field-code,t, echo=F, include=F,cache=T}
+
+
+pf.winter.cod <- pred.output.pred$`cod_PA RV_survey`
+pf.spring.cod <- pred.output.pred$`cod_PA nmfs-spring_survey`
+pf.fall.cod <- pred.output.pred$`cod_PA nmfs-fall_survey`
+
+# Set the color universally for all these figures
+col <- addalpha(pals::viridis(101),1)
+col.sd <- addalpha(pals::magma(101),1) # Different color for the standard deviation figures
+
+brk <- seq(0,1,0.1)
+brk.sd <-  seq(0,0.3,0.05)
+
+
+if(length(brk) <= 6) hgt <- unit(2,'cm')
+if(length(brk.sd) <= 6) hgt.sd <- unit(2,'cm')
+if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(3.75,'cm')
+if(length(brk.sd) > 6 & length(brk.sd) <= 12) hgt.sd <- unit(3.75,'cm')
+if(length(brk) > 12) hgt <- unit(5,'cm')
+if(length(brk.sd) > 12) hgt.sd <- unit(5,'cm')
+
+lims <- range(brk)
+lims.sd <- range(brk.sd)
+
+
+sf <- scale_fill_gradientn(colours = col, limits=lims,breaks=brk,name=en2fr("Occurrence Probability",french,case = "sentence"))
+sc <- scale_colour_gradientn(colours = col, limits=lims,breaks=brk,name=en2fr("Occurrence Probability",french,case = "sentence"))
+
+sf.sd <- scale_fill_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+sc.sd <- scale_colour_gradientn(colours = col.sd, limits=lims.sd,breaks=brk.sd,name="SD  ")
+
+# Now all this I want to be specific for each plot I think.
+
+# So the cod winter plots will be...
+eras <- factor.2.number(unique(pf.winter.cod$years_5))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.winter %>% dplyr::filter(years_5 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.winter %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.winter.cod$yrs[pf.winter.cod$years_5==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+pf.winter.cod <- st_as_sf(pf.winter.cod,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.winter.cod <- st_join(mesh.grid,pf.winter.cod)
+pf.winter.cod <- pf.winter.cod %>% dplyr::filter(!is.na(years_5))
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.winter.cod <- bp + geom_sf(data = pf.winter.cod  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.winter.cod
+plt.pf.winter.cod.sd <- bp + geom_sf(data = pf.winter.cod  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+# NMFS Spring
+
+eras <- factor.2.number(unique(pf.spring.cod$years_5))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.spring %>% dplyr::filter(years_5 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.spring %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.spring.cod$yrs[pf.spring.cod$years_5==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+pf.spring.cod <- st_as_sf(pf.spring.cod,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.spring.cod <- st_join(mesh.grid,pf.spring.cod)
+pf.spring.cod <- pf.spring.cod %>% dplyr::filter(!is.na(years_5))
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.spring.cod <- bp + geom_sf(data = pf.spring.cod  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.spring.cod
+plt.pf.spring.cod.sd <- bp + geom_sf(data = pf.spring.cod  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+
+
+# NMFS Fall
+
+eras <- factor.2.number(unique(pf.fall.cod$years_5))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.fall %>% dplyr::filter(years_5 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.fall %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.fall.cod$yrs[pf.fall.cod$years_5==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+pf.fall.cod <- st_as_sf(pf.fall.cod,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.fall.cod <- st_join(mesh.grid,pf.fall.cod)
+pf.fall.cod <- pf.fall.cod %>% dplyr::filter(!is.na(years_5))
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.fall.cod <- bp + geom_sf(data = pf.fall.cod  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.fall.cod
+plt.pf.fall.cod.sd <- bp + geom_sf(data = pf.fall.cod  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+# Output these plots
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_cod.png"),plt.pf.winter.cod,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_cod.tiff"),plt.pf.winter.cod,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_cod.png"),plt.pf.spring.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_cod.tiff"),plt.pf.spring.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_cod.png"),plt.pf.fall.cod,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_cod.tiff"),plt.pf.fall.cod,base_width =12,base_height =8,units='in',dpi=300)
+# Now the SD plots
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_cod_sd.png"),plt.pf.winter.cod.sd,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_cod_sd.tiff"),plt.pf.winter.cod.sd,base_width =12,base_height =4,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_cod_sd.png"),plt.pf.spring.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_cod_sd.tiff"),plt.pf.spring.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_cod_sd.png"),plt.pf.fall.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_cod_sd.tiff"),plt.pf.fall.cod.sd,base_width =12,base_height =8,units='in',dpi=300)
+
+
+
+```
+
+
+```{r yt-prediction-field-code,t, echo=F, include=F, cache=T}
+pf.winter.yt <- pred.output.pred$`yt_PA RV_survey`
+pf.spring.yt <- pred.output.pred$`yt_PA nmfs-spring_survey`
+pf.fall.yt <- pred.output.pred$`yt_PA nmfs-fall_survey`
+
+
+# Set the color universally for all these figures
+col <- addalpha(pals::viridis(101),1)
+col.sd <- addalpha(pals::magma(101),1) # Different color for the standard deviation figures
+brk <- seq(0,1,0.1)
+brk.sd <-  seq(0,0.3,0.05)
+
+
+if(length(brk) <= 6) hgt <- unit(2,'cm')
+if(length(brk.sd) <= 6) hgt.sd <- unit(2,'cm')
+if(length(brk) > 6 & length(brk) <= 12) hgt <- unit(3.75,'cm')
+if(length(brk.sd) > 6 & length(brk.sd) <= 12) hgt.sd <- unit(3.75,'cm')
+if(length(brk) > 12) hgt <- unit(5,'cm')
+if(length(brk.sd) > 12) hgt.sd <- unit(5,'cm')
+
+lims <- range(brk)
+lims.sd <- range(brk.sd)
+# Now all this I want to be specific for each plot I think.
+
+# So the yt winter plots will be...
+eras <- factor.2.number(unique(pf.winter.yt$years_3))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.winter %>% dplyr::filter(years_3 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.winter %>% dplyr::filter(years_3 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.winter.yt$yrs[pf.winter.yt$years_3==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+pf.winter.yt <- st_as_sf(pf.winter.yt,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.winter.yt <- st_join(mesh.grid,pf.winter.yt)
+pf.winter.yt <- pf.winter.yt %>% dplyr::filter(!is.na(years_3))
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.winter.yt <- bp + geom_sf(data = pf.winter.yt  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.winter.yt
+plt.pf.winter.yt.sd <- bp + geom_sf(data = pf.winter.yt  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=6) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+# NMFS Spring
+
+eras <- factor.2.number(unique(pf.spring.yt$years_3))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.spring %>% dplyr::filter(years_3 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.spring %>% dplyr::filter(years_3 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.spring.yt$yrs[pf.spring.yt$years_3==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+# Now clip this to the appropriate area...
+pf.spring.yt <- st_as_sf(pf.spring.yt,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.spring.yt <- st_join(mesh.grid,pf.spring.yt)
+pf.spring.yt <- pf.spring.yt %>% dplyr::filter(!is.na(years_3))
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.spring.yt <- bp + geom_sf(data = pf.spring.yt  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.spring.yt
+plt.pf.spring.yt.sd <- bp + geom_sf(data = pf.spring.yt  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+
+
+# NMFS Fall
+
+eras <- factor.2.number(unique(pf.fall.yt$years_5))
+n.eras <- length(eras)
+for(n in min(eras):max(eras))
+{
+  yrs <- paste0(substr(dat.fall %>% dplyr::filter(years_5 == n) %>% 
+                                                   dplyr::summarise(min = min(year)),3,4),"-",
+                                          substr(dat.fall %>% dplyr::filter(years_5 == n) %>% dplyr::summarise(max = max(year)),3,4))
+  
+  if(substr(yrs[1],1,2) > 30) { yrs <- paste0(19,yrs)} else {yrs <- paste0(20,yrs)}
+  pf.fall.yt$yrs[pf.fall.yt$years_5==n] <- yrs
+}
+
+# Now clip this to the appropriate area...
+pf.fall.yt <- st_as_sf(pf.fall.yt,coords = c("X","Y"),crs = st_crs(mesh.grid))
+pf.fall.yt <- st_join(mesh.grid,pf.fall.yt)
+pf.fall.yt <- pf.fall.yt %>% dplyr::filter(!is.na(years_5))
+
+
+# Facet version of the above NOTE HOW THE YEARS ARE F'd up now...
+plt.pf.fall.yt <- bp + geom_sf(data = pf.fall.yt  ,aes(fill = pred,colour=pred))+
+facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf + sc  +# theme_map() +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+#plt.rf.fall.yt
+plt.pf.fall.yt.sd <- bp + geom_sf(data = pf.fall.yt  ,aes(fill = pred.sd,colour=pred.sd))+
+  facet_wrap(~yrs,ncol=5) +
+  coord_sf(datum=32619) + sf.sd + sc.sd  +# theme_map1 +
+ theme(legend.key.width =hgt,text = element_text(size=16), legend.position="top") 
+
+# Output these plots
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_yt.png"),plt.pf.winter.yt,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_yt.tiff"),plt.pf.winter.yt,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_yt.png"),plt.pf.spring.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_yt.tiff"),plt.pf.spring.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_yt.png"),plt.pf.fall.yt,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_yt.tiff"),plt.pf.fall.yt,base_width =12,base_height =9,units='in',dpi=300)
+
+## Now for the sd plots
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_yt_sd.png"),plt.pf.winter.yt.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_winter_yt_sd.tiff"),plt.pf.winter.yt.sd,base_width =12,base_height =8,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_yt_sd.png"),plt.pf.spring.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_spring_yt_sd.tiff"),plt.pf.spring.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_yt_sd.png"),plt.pf.fall.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+save_plot(paste0(direct.proj,"Results/Figures/pf_fall_yt_sd.tiff"),plt.pf.fall.yt.sd,base_width =12,base_height =9,units='in',dpi=300)
+
+
+```
+
+
+
 ```{r ,figs-load, echo=F, include=F, paged.print=FALSE,cache =F}
 # Here we load the figures we need for later, saves lots of running above if nothing has changed...
 over.plt <- paste0(direct.proj,"Results/Figures/GB_overview.png") # Overview plot
@@ -786,4 +1455,32 @@ area.can.vs.us.plt <- paste0(direct.proj,"Results/Figures/Area_can_vs_us_ts_high
 folds.plt <- paste0(direct.proj,"Results/Figures/cross_fold_validation.png") # Cross fold validation plot
 pred.17.19.plt <- paste0(direct.proj,"Results/Figures/prediction_2017_2019.png") # Predition and residula plot
 gini.index.plt <- paste0(direct.proj,"Results/Figures/Gini_index.png") # Gini index plot
+# Mean rf plots.
+rf.winter.cod.plt <- paste0(direct.proj,"Results/Figures/rf_winter_cod.png")
+rf.spring.cod.plt <- paste0(direct.proj,"Results/Figures/rf_spring_cod.png")
+rf.fall.cod.plt <- paste0(direct.proj,"Results/Figures/rf_fall_cod.png")
+rf.winter.yt.plt <- paste0(direct.proj,"Results/Figures/rf_winter_yt.png")
+rf.spring.yt.plt <- paste0(direct.proj,"Results/Figures/rf_spring_yt.png")
+rf.fall.yt.plt <- paste0(direct.proj,"Results/Figures/rf_fall_yt.png")
+# SD rf plots
+rf.winter.cod.sd.plt <- paste0(direct.proj,"Results/Figures/rf_winter_cod_sd.png")
+rf.spring.cod.sd.plt <- paste0(direct.proj,"Results/Figures/rf_spring_cod_sd.png")
+rf.fall.cod.sd.plt <- paste0(direct.proj,"Results/Figures/rf_fall_cod_sd.png")
+rf.winter.yt.sd.plt <- paste0(direct.proj,"Results/Figures/rf_winter_yt_sd.png")
+rf.spring.yt.sd.plt <- paste0(direct.proj,"Results/Figures/rf_spring_yt_sd.png")
+rf.fall.yt.sd.plt <- paste0(direct.proj,"Results/Figures/rf_fall_yt_sd.png")
+# Mean PF plots
+pf.winter.cod.plt <- paste0(direct.proj,"Results/Figures/pf_winter_cod.png")
+pf.spring.cod.plt <- paste0(direct.proj,"Results/Figures/pf_spring_cod.png")
+pf.fall.cod.plt <- paste0(direct.proj,"Results/Figures/pf_fall_cod.png")
+pf.winter.yt.plt <- paste0(direct.proj,"Results/Figures/pf_winter_yt.png")
+pf.spring.yt.plt <- paste0(direct.proj,"Results/Figures/pf_spring_yt.png")
+pf.fall.yt.plt <- paste0(direct.proj,"Results/Figures/pf_fall_yt.png")
+# SD PF plots
+pf.winter.cod.sd.plt <- paste0(direct.proj,"Results/Figures/pf_winter_cod_sd.png")
+pf.spring.cod.sd.plt <- paste0(direct.proj,"Results/Figures/pf_spring_cod_sd.png")
+pf.fall.cod.sd.plt <- paste0(direct.proj,"Results/Figures/pf_fall_cod_sd.png")
+pf.winter.yt.sd.plt <- paste0(direct.proj,"Results/Figures/pf_winter_yt_sd.png")
+pf.spring.yt.sd.plt <- paste0(direct.proj,"Results/Figures/pf_spring_yt_sd.png")
+pf.fall.yt.sd.plt <- paste0(direct.proj,"Results/Figures/pf_fall_yt_sd.png")
 ```

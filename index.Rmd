@@ -136,7 +136,8 @@ for(fun in funs)
 # used in combo with scale_x_continuous() in ggplot
 breaks_fun <- function(x)  if (max(x) > 15) { seq(0,300,50) } else { seq(8, 14, 0.5) }
 factor.2.number <- function(x) {as.numeric(levels(x))[x]} # My friend factor.2.number
-
+# Function in case you need it for transforming propotion data to not have 0's and 1's.  
+beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
 # Just so this code is easily portable over to our eventual Res Doc..
 french = FALSE
 #direct.proj <- "Y:/Projects/GB_time_area_closure_SPERA/" 
@@ -153,7 +154,7 @@ load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 load(paste0(direct.proj,"data/Depth_SST_and_Sed_on_GB.RData"))
 #load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
-load(paste0(direct.proj,"data/NEW_prediction_fields.RData"))
+load(paste0(direct.proj,"data/NEW_pred_and_Random_fields.RData"))
 load(paste0(direct.proj,"data/Prediction_mesh.RData"))
 load(paste0(direct.proj,"data/All_model_covariate_fits.RData"))
 load(paste0(direct.proj,"data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
@@ -206,6 +207,11 @@ all.closures <- c(st_geometry(CA1),st_geometry(CA2),st_geometry(yt.closures),st_
 # The survey data, in sf form
 dat.sf <- st_as_sf(dat.final, coords = c('lon','lat'),crs = 4326,remove=F)
 dat.sf <- st_transform(dat.sf,crs = 32619)
+# I need to make the mesh.grid a nicer sf object
+mesh.grid <- st_sf(mesh.grid)
+mesh.sf <- inla.mesh2sf(mesh.gf)
+mesh <- mesh.sf$triangles
+mesh <- st_sf(mesh,crs = st_crs(mesh.grid))
 ##### Done with data loading... Set some variables for the rest of the show..
 
 
@@ -213,8 +219,7 @@ dat.sf <- st_transform(dat.sf,crs = 32619)
 options(scipen=999)
 # Set a nice theme for the ggplots unless I override
 theme_set(theme_few(base_size = 12))
-# Function in case you need it for transforming propotion data to not have 0's and 1's.  
-beta.transform <- function(dat,s=0.5)  (dat*(length(dat)-1) + s) / length(dat)
+
 
 ```
 
