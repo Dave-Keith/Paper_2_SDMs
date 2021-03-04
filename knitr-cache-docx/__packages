@@ -32,6 +32,10 @@ lattice
 caret
 concaveman
 rosettafish
+kableExtra
+Matrix
+foreach
+INLA
 marmap
 abind
 stars
@@ -43,7 +47,3 @@ RStoolbox
 pals
 ggnewscale
 ggspatial
-Matrix
-foreach
-INLA
-kableExtra

@@ -24,23 +24,23 @@ ft.note <-  c("CoML obtenu auprès de  http://waves-vagues.dfo-mpo.gc.ca/Library
 options(knitr.kable.NA = '')
 # NEED TO SORT THE meta call out in the index using bookdown instead of csasdown to mimic the behaviour to make table work automaticlaly in word an d pdf.
 
-# if(length(grep("pdf", names(meta))))
-# {
-# kableExtra::kbl(table_1, booktabs = TRUE, escape =F, format='latex',
-#   caption = cap) %>%
-#   kable_styling(full_width = F) %>% row_spec(c(2:10,12,14:18,20), bold = T) %>%
-#   kable_styling(full_width = F) %>% row_spec(c(2,4,5,8:12,14,17,20), italic = T) %>%
-# footnote(number  = ft.note) #%>% landscape
-# }
-# 
-# if(length(grep("word", names(meta))))
-# {
+if(any(grepl("pdf", names(meta))))
+{
+kableExtra::kbl(table_1, booktabs = TRUE, escape =F, format='latex',
+  caption = cap) %>%
+  kable_styling(full_width = F) %>% row_spec(c(2:10,12,14:18,20), bold = T) %>%
+  kable_styling(full_width = F) %>% row_spec(c(2,4,5,8:12,14,17,20), italic = T) %>%
+footnote(number  = ft.note) #%>% landscape
+}
+
+if(any(grepl("word", names(meta))))
+{
 kableExtra::kbl(table_1, booktabs = TRUE, escape =F, format = 'pipe',
   caption = cap) %>%
   kable_styling(full_width = F) %>% row_spec(c(2:10,12,14:18,20), bold = T) %>%
   kable_styling(full_width = F) %>% row_spec(c(2,4,5,8:12,14,17,20), italic = T) %>%
 footnote(number  = ft.note) #%>% landscape
-# }
+}
 ```
 
 \elandscape

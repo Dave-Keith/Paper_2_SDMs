@@ -2,15 +2,19 @@
 output:
   bookdown::word_document2:
     fig_caption: yes
+    number_sections: false
   fontsize: 12pt
   sansfont: Liberation Sans
   mainfont: Liberation Sans
   classoption: twocolumn
+  language: english
   # bookdown::html_document2: default
   # bookdown::pdf_document2:
   #     keep_tex: yes
-  #     number_sections: no
+  #     number_sections: false
   #     toc: no
+  # language: english
+  # classoption: twocolumn
 # End of options to set
 title: "Quantifying changes in the Distribution of Atlantic Cod and Yellowtail Flounder on Georges Bank"
 author: |
@@ -44,47 +48,13 @@ header-includes:
  - \usepackage{tikz} \usepackage{pdflscape}
  - \newcommand{\blandscape}{\begin{landscape}}
  - \newcommand{\elandscape}{\end{landscape}}
+ - \newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}}
+
 ---
 
 
 ```{r setup, echo=FALSE, cache=FALSE, message=FALSE, results='hide', warning=FALSE}
 library(knitr)
-if (is_latex_output()) {
-  knitr_figs_dir <- "knitr-figs-pdf/"
-  knitr_cache_dir <- "knitr-cache-pdf/"
-  fig_out_type <- "png"
-} else {
-  knitr_figs_dir <- "knitr-figs-docx/"
-  knitr_cache_dir <- "knitr-cache-docx/"
-  fig_out_type <- "png"
-}
-fig_asp <- 0.618
-fig_width <- 9
-fig_out_width <- "6in"
-fig_dpi <- 180
-fig_align <- "center"
-fig_pos <- "htb"
-opts_chunk$set(
-  collapse = TRUE,
-  warning = FALSE,
-  message = FALSE,
-  comment = "#>",
-  fig.path = knitr_figs_dir,
-  cache.path = knitr_cache_dir,
-  fig.asp = fig_asp,
-  fig.width = fig_width,
-  out.width = fig_out_width,
-  echo = FALSE,
-  #  autodep = TRUE,
-  #  cache = TRUE,
-  cache.comments = FALSE,
-  dev = fig_out_type,
-  dpi = fig_dpi,
-  fig.align = fig_align,
-  fig.pos = fig_pos
-)
-options(xtable.comment = FALSE)
-options(kableExtra.latex.load_packages = FALSE)
 
 ##### Bring in the data and functions
 library(readxl)
@@ -102,6 +72,7 @@ library(tidyverse)
 library(mgcv)
 library(boot)
 library(cowplot)
+library(ggbiplot)
 library(sf)
 library(sp)
 library(RCurl)
@@ -154,7 +125,8 @@ load(paste0(direct.proj,"Data/INLA_mesh_input_data.RData"))
 load(paste0(direct.proj,"Data/INLA_meshes.RData"))
 load(paste0(direct.proj,"data/Depth_SST_and_Sed_on_GB.RData"))
 #load(paste0(direct.proj,"data/Prediction_fields_all_models.RData"))
-load(paste0(direct.proj,"data/NEW_pred_and_Random_fields.RData"))
+load(paste0(direct.proj,"data/NEW_pred_and_Random_fields.RData")) # Use this only for the prediction fields.
+load(paste0(direct.proj,"data/3_and_5_year_random_fields.RData")) # I still want to use this for my random fields
 load(paste0(direct.proj,"data/Prediction_mesh.RData"))
 load(paste0(direct.proj,"data/All_model_covariate_fits.RData"))
 load(paste0(direct.proj,"data/INLA_5_fold_cross_valiation_pred_error_and_residual.RData"))
@@ -212,7 +184,46 @@ mesh.grid <- st_sf(mesh.grid)
 mesh.sf <- inla.mesh2sf(mesh.gf)
 mesh <- mesh.sf$triangles
 mesh <- st_sf(mesh,crs = st_crs(mesh.grid))
+
+
 ##### Done with data loading... Set some variables for the rest of the show..
+
+if (is_latex_output()) {
+  knitr_figs_dir <- "knitr-figs-pdf/"
+  knitr_cache_dir <- "knitr-cache-pdf/"
+  fig_out_type <- "png"
+} else {
+  knitr_figs_dir <- "knitr-figs-docx/"
+  knitr_cache_dir <- "knitr-cache-docx/"
+  fig_out_type <- "png"
+}
+fig_asp <- 0.618
+fig_width <- 9
+fig_out_width <- "6in"
+fig_dpi <- 180
+fig_align <- "center"
+fig_pos <- "htb"
+opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = "#>",
+  fig.path = knitr_figs_dir,
+  cache.path = knitr_cache_dir,
+  fig.asp = fig_asp,
+  fig.width = fig_width,
+  out.width = fig_out_width,
+  echo = FALSE,
+  #  autodep = TRUE,
+  #  cache = TRUE,
+  cache.comments = FALSE,
+  dev = fig_out_type,
+  dpi = fig_dpi,
+  fig.align = fig_align,
+  fig.pos = fig_pos
+)
+options(xtable.comment = FALSE)
+options(kableExtra.latex.load_packages = FALSE)
 
 
 # Don't use scientific notation please!!
@@ -220,28 +231,22 @@ options(scipen=999)
 # Set a nice theme for the ggplots unless I override
 theme_set(theme_few(base_size = 12))
 
+# For examplorary purposes I've kept the option to translate to French, and to ID if we are making a word or pdf docnot needed otherwise.
+# `french` is extracted from the YAML header metadata, also later we use metadata to make sure the tables are formatted correctly for word/pdf
+meta <- rmarkdown::metadata$output
+
+if(meta$language == 'french'){ french = T} else {french = F}
+print(french)
+# if(length(grep("pdf", names(meta)))){
+#   #french <- meta$`bookdown::pdf_document2`$french
+#   prepub <- meta$`bookdown::pdf_document2`$prepub
+# }else if(length(grep("word", names(meta)))){
+#   #french <- meta$`bookdown::word_document2`$french
+#   prepub <- meta$`bookdown::word_document2`$prepub
+# }
+if(french) options(OutDec =  ",")
+
 
 ```
 
-<!--# NEED TO SORT THIS OUT BEFORE THE TABLE WILL WORK IN BOTH WORD AND PDF... --->
 
-<!-- ```{r word-vs-pdf-and-language, cache=F} -->
-
-<!-- # Needed for CSASdown translations to French, and to ID if we are making a word or pdf docnot needed otherwise.```{r load-libraries, cache=FALSE} -->
-<!-- # `french` and `prepub` variables are extracted from the YAML headers above and -->
-<!-- #  are used throughout the document. To make the document all in french, change -->
-<!-- #  the line in the YAML header above to `french: true` -->
-<!-- #french = F # DK added, if problems with french options I might need to chuck this, only here for the word doc version... -->
-<!-- meta <- rmarkdown::metadata$output -->
-
-<!-- if(length(grep("pdf", names(meta)))){ -->
-<!--   french <- meta$`csasdown::resdoc_pdf`$french -->
-<!--   prepub <- meta$`csasdown::resdoc_pdf`$prepub -->
-<!-- }else if(length(grep("word", names(meta)))){ -->
-<!--   french <- meta$`csasdown::resdoc_word`$french -->
-<!--   prepub <- meta$`csasdown::resdoc_word`$prepub -->
-<!-- } -->
-<!-- if(french){ -->
-<!--   options(OutDec =  ",") -->
-<!-- } -->
-<!-- ```  -->

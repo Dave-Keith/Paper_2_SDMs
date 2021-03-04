@@ -1,0 +1,119 @@
+---
+output:
+  bookdown::word_document2:
+    fig_caption: yes
+  fontsize: 12pt
+  sansfont: Liberation Sans
+  mainfont: Liberation Sans
+  classoption: twocolumn
+  language: french
+  # bookdown::html_document2: default
+  # bookdown::pdf_document2:
+  #     keep_tex: yes
+  #     number_sections: no
+  #     toc: no
+# End of options to set
+title: "Quantifying changes in the Distribution of Atlantic Cod and Yellowtail Flounder on Georges Bank"
+author: |
+  David M. Keith^1^,
+  Jessica A. Sameoto^1^,
+  Freya M. Keyser^1^, and
+  Irene Andrushchenko^2^
+address: |
+  ^1^Bedford Institute of Oceanography\
+     Fisheries and Oceans Canada, 1 Challenger Dr.\
+     Dartmouth Nova Scotia, B2Y 4A2, Canada\
+  ^2^St. Andrews Biological Station\
+     Fisheries and Oceans Canada, 125 Marine Science Dr.\
+     St. Andrews New Brunswick, E5B 0E4, Canada\
+month: November # fill in
+year: 2020
+report_number: nnn
+region: Maritimes Region
+author_list: "Keith, D.M., Sameoto, J.A., Keyser, F.M., Andrushchenko, I."
+abstract: |
+  Sustainably managing marine fisheries has long been recognized as a global priority which has proven difficult to achieve.  The reasons sustainable fisheries management goals have not been achieved include various socio-economic, political, and scientific factors.  Scientifically, one of the major challenges has been understanding how spatial and temporal heterogenity in processes impact the populations dynamics of a stock. Fisheries science has spent a great deal of effort collecting data, both biological and environmental, which are inherently spatial and temporal in nature. Computational and statistical limitations have resulted in science products which do not fully utilize the spatio-temporal information contained in these data and tend to treat stocks as homogeneous entities.  Fortunately, computational advances coupled with more accessible statistical methods have resulted in new methodologies which can harness the spatio-temporal information contained in these fisheries data.  Here we develop temporally variable species distribution models for yellowtail flounder (*Limanda ferruginea*) and Atlantic cod (*Gadus morhua*) on Georges Bank (GB) using a suite of static environmental covariates and presence-absence information from groundfish trawl surveys in Canada and the United States.  These models indicate there are both seasonal and long term shifts in the distribution of both species.  The average sea surface temperature (SST; average from 1997-2008) and depth were significant predictors of the distribution of both species throughout the year.  Significant shifts in the distribution of both species occurs relatively frequently, with the distribution of cod observed to differ approximately every 5 years, while the Yellowtail distribution appears to fluctuate at least every 3 years. The core areas for both species shifts to the north and east throughout the study period.  Much of this shift is due to the loss of the species from southern and western portions of GB.  The seasonal distribution of cod and yellowtail are relatively consistent throughout the late winter and spring, while in the fall the distribution of cod shifts towards the edge of the bank. For cod there has been a substainal decline in core area within the United States waters on Georges Bank while there has been little change in Canadian waters.  In U.S. waters the yellowtail core area declined rapidly in the late 1970s and early 1980s, but rebounded rapidly in the 1990s and early 2000s, while the core area was unchanged or slowly increased in Canadian waters over this time. These trends have resulted in an increase in the proportion of both stocks in Canadian waters in recent years. The models for both stocks were also relatively successful at predicting the likely location of the stock up to 3 years into the future, in addtion the simplified models which use only the random field for prediction performed as well as the models that included environmental covariates. Here we show how these models are able to provide novel insights into both seasonal and inter-annual variability in species distributions even without the use of environmental covariates. The incorporation of spatial information into science advice will improve our ability to sustainably manage these stocks.  
+header: "Draft working paper --- Do not cite or circulate" # or "" to omit
+
+knit: bookdown::render_book
+
+header-includes: 
+ - \usepackage{tikz} \usepackage{pdflscape}
+ - \newcommand{\blandscape}{\begin{landscape}}
+ - \newcommand{\elandscape}{\end{landscape}}
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE, message=FALSE, results='hide', warning=FALSE}
+library(knitr)
+if (is_latex_output()) {
+  knitr_figs_dir <- "knitr-figs-pdf/"
+  knitr_cache_dir <- "knitr-cache-pdf/"
+  fig_out_type <- "png"
+} else {
+  knitr_figs_dir <- "knitr-figs-docx/"
+  knitr_cache_dir <- "knitr-cache-docx/"
+  fig_out_type <- "png"
+}
+fig_asp <- 0.618
+fig_width <- 9
+fig_out_width <- "6in"
+fig_dpi <- 180
+fig_align <- "center"
+fig_pos <- "htb"
+opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = "#>",
+  fig.path = knitr_figs_dir,
+  cache.path = knitr_cache_dir,
+  fig.asp = fig_asp,
+  fig.width = fig_width,
+  out.width = fig_out_width,
+  echo = FALSE,
+  #  autodep = TRUE,
+  #  cache = TRUE,
+  cache.comments = FALSE,
+  dev = fig_out_type,
+  dpi = fig_dpi,
+  fig.align = fig_align,
+  fig.pos = fig_pos
+)
+
+library(readxl)
+library(xtable)
+library(rosettafish)
+library(readr)
+library(tibble)
+library(kableExtra)
+
+options(xtable.comment = FALSE)
+options(kableExtra.latex.load_packages = FALSE)
+```
+
+
+
+# NEED TO SORT THIS OUT BEFORE THE TABLE WILL WORK IN BOTH WORD AND PDF... -
+
+```{r word-vs-pdf-and-language, cache=F,echo=F,results= 'show'}
+
+# Needed for CSASdown translations to French, and to ID if we are making a word or pdf docnot needed otherwise.```{r load-libraries, cache=FALSE}
+# `french` and `prepub` variables are extracted from the YAML headers above and
+#  are used throughout the document. To make the document all in french, change
+#  the line in the YAML header above to `french: true`
+#french = F # DK added, if problems with french options I might need to chuck this, only here for the word doc version...
+meta <- rmarkdown::metadata$output
+
+if(meta$language == 'french'){ french = T} else {french = F}
+print(french)
+# if(length(grep("pdf", names(meta)))){
+#   #french <- meta$`bookdown::pdf_document2`$french
+#   prepub <- meta$`bookdown::pdf_document2`$prepub
+# }else if(length(grep("word", names(meta)))){
+#   #french <- meta$`bookdown::word_document2`$french
+#   prepub <- meta$`bookdown::word_document2`$prepub
+# }
+if(french) options(OutDec =  ",")
+
+```
