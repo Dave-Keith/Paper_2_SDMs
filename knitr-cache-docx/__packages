@@ -47,3 +47,6 @@ RStoolbox
 pals
 ggnewscale
 ggspatial
+plyr
+scales
+ggbiplot

@@ -663,7 +663,7 @@ all.resids$model.id[all.resids$model.id == 'intercept'] <- "No covariates"
 all.resids$model.id[all.resids$model.id == 'full'] <- "Full Model"
 #all.resids$line.size <- 0.5
 #all.resids$line.size[all.resids$model.id == "full"] <- 0.25
-pred.17.19 <- all.resids %>%  group_by(model,species,year,model.id,survey,type) %>% summarise(mn = mean(resid), rmse = RMSE(fitted,response))
+pred.17.19 <- all.resids %>%  group_by(model,species,year,model.id,survey,type) %>% dplyr::summarise(mn = mean(resid), rmse = RMSE(fitted,response))
 pred.17.19$survey <- factor(pred.17.19$survey,levels = c("Winter","Spring","Fall"))
 #pred.17.19$field[pred.17.19$field ==3] <- "3 year field"
 #pred.17.19$field[pred.17.19$field ==5] <- "5 year field"

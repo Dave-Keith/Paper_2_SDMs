@@ -1,0 +1,106 @@
+---
+title: "Spatio-temporal Paper Draft Story Summary"
+author: "DK"
+date: "9/3/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+## Introduction
+
+1.    The challenges facing sustainable fisheries management are multifaceted and include interactions between complex ecological, socio-economic, and political factors. Fisheries management regions were often delineated as a result of political or geographic considerations rather than biological or ecological rationale. 
+
+2.    Longstanding challenge in fisheries science is accounting for both spatial and temporal heterogeneity in processes driving population dynamics . We know it may be a problem but no tools to solve problem.  This is really annoying because fisheries science has some amazing data to do this. Tools used to understand spatial patterns often limited.
+
+3.    But there are these SDMs which have been used a fair bit, but typically been limited temporally (but that is changing). In recent years tools have been developed which can better account for both space and time in one model. 
+
+- ***We could stop intro here and save for methods, but its a short intro.***
+
+4.    GB and how important it is to fisheries in general
+
+5.    Cod and Yellowtail are two cool species in rough shape on GB.
+
+6.    We are going to use INLA and our objectives are: 
+
+      -   quantify any long-term shifts in the distribution of these stocks 
+      -   quantify any seasonal changes in the SDMs using survey data collected in the winter, spring and fall
+      -   quantify any changes in *core area* within Canadian and U.S. waters
+      -   quantify the effect of a suite of static environmental layers on the distribution of these stocks
+      
+
+## Methods
+
+What we've shown with the Closure paper.
+
+## Results
+
+7.    There are both seasonal and long term shifts in the distribution of both stocks 
+
+        -   With our SDM models we can observe and quantify the changes. Talk specifics for both stocks, including
+        
+            -   Significant shifts in the distribution of both stocks occurs relatively frequently (≤ 5 years)
+            -   Distributions shifts for both stocks due to loss of *core area* in West & South (i.e. US), Canada stable
+            -   The seasonal distribution changes, yellowtail doesn't change much, big shift for cod in Fall
+          
+8.    Environmental covariates
+
+        -   Few of the static environmental variables were associated with the distribution of either stocks 
+        -   Depth, SST, and Sediment (yellowtail) only consistently significant predictors.
+        
+9.    Model Hyperparameters
+
+        -   Distribution of cod tended to be correlated across a longer range than yellowtail 
+        -   Distribution of cod more variable in the Fall (higher SD of RF), yellowtail similar throughout the year
+        
+10.   Prediction and Validation
+
+        -   Model validation indicates out of sample prediction unbiased and relatively accurate
+        -   Model able to predict OP up to 3 years in the future with only a modest increase in error
+        -   The predictive ability of the models is largely informed by the random fields 
+          -   Predictions using just the random fields and the models with covariates perform very similarly.
+
+## Discussion
+
+
+11.   Summarize results. 
+        -   The SDMs developed here can be used to identify regions of consistently high/low OP
+        -   quantify changes in the size of a *core area* over time and between seasons (surveys) 
+        -   quantify how rapidly shifts in their distributions occur
+        -   and provide short term forecasts of the spatial OP patterns in future years.
+
+12.   Atlantic cod results
+
+        -   Decline in OP consistent with observed cod declines across NW Atlantic, been relatively stable since this period
+        -   Fall distribution shifting to NW and likely part of population is off the bank in Fall. Implications...
+        
+13.   Yellowtail flounder results
+
+        -   Yellowtail tend to be found on sandy bottoms within a narrow depth band
+        -   Yellowtail like region straddling Can/US more than environmental covariates can explain
+        -   Likely this is last bastion for YT on GB, if environmental shifts continue YT are screwed
+        
+14.   Environmental Covariates and Random Fields
+
+        -   Few of these static layers mattered
+        -   Depth makes sense and results consistent with known life history (i.e. depth matters more for YT than cod)
+        -   SST a bit surprising 
+            -   May be due to it capturing general widespread oceanographic features across the bank domain. 
+            -   A reflection of  connection between surface waters and the benthos given vertical mixing on GB?
+        -   Unexpectedly, models without ECs did just as good a job at out of sample prediction as models with ECs
+        
+15.   Conclusion
+
+        -   We quantify how the distribution of both stocks changes both seasonally and inter-annually 
+        -   Simple static environmental covariates generally aren't great
+              -   Only average SST (1997-2008), depth, and bottom type (yellowtail only) ECs mattered consistently
+        -   Inter-annual shifts show increasing importance of Canada for both stocks on GB (environmental change?)
+        -   Directed environmental change increasing risk of extirpation for both stocks on GB irrespective of FM 
+        -   The utilization of the spatio-temporal information contained in these models provides novel insights which 
+              -   Can be used to improve science advice 
+              -   Lead to more informed fisheries management decisions.
+
+
+  
+      
+
