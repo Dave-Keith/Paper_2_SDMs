@@ -4,7 +4,7 @@
 
 <br>
 
-```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank (GB) study area.  Points represent the sample locations for each of the three surveys and the orange outline represets the core region of GB included in these analyses (42,000 km²).  In the U.S. the blue polygon is Closed Area I (CA I) and the white polygon is Closed Area II (CA II). In Canada the small gold bordered cells (each cells covers an area of approximately 42.7 km²) represent areas which have been included in either the cod or yellowtail closures at least once.  Some of the cells have been part of both closures and not all cells are closed each year; darker fill indicates cells which have been closed more frequently. The red line indicates the Canadian exclusive economic zone (EEZ)."}
+```{r Overview, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Georges Bank (GB) study area.  Points represent the sample locations for each of the three surveys and the orange outline represets the core region of GB included in these analyses (42,000 km²).  The red line indicates the Canadian exclusive economic zone (EEZ)."}
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(over.plt)
 ```

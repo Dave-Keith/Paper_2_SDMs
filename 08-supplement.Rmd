@@ -6,13 +6,6 @@ After that, all subsequent sections will be turned into appendices. -->
 
 \beginsupplement
 
-## Model Selection
-
-Stage 1 of model selection resulted in a significant reduction in the number of covariates. For Atlantic Cod, sea surface temperature (*SST*) was identified as a significant covariate in the Winter and Spring, in addition depth (*Dep*) and stratification were also significant predictors in the Spring. In the Fall no covariates had a WAIC that were a significant improvement from the intercept only model (Figure \@ref(fig:diag-1-fe)). Further model selection indicated that an additive *Dep + SST* model was the preferred model in all 3 seasons for Atlantic Cod (Figures \@ref(fig:diag-2-fe) and \@ref(fig:diag-3-fe)). When exploring the effect of temporal variability on the random fields, the models using the 5-year random field had the lowest WAIC in all seasons (Figure \@ref(fig:diag-rf)).
-
-For Yellowtail Flounder, stage 1 of model selection indicated that the inclusion of *Dep* significantly improved the models in all 3 seasons (surveys), while Sediment type (*Sed*) and chlorophyll concentration (*Chl*) in the Fall had a similar impact on the model WAIC as *Dep*. As a result *SST*, *Dep*, *Chl*, and *Sed* were used to explore the development of more complex covariate models. For Yellowtail Flounder the best models in stage 2 of model selection included 2 covariates with a combination of Dep, SST, and Sed (Figure \@ref(fig:diag-2-fe)). Further model selection indicated that the preferred model for Yellowtail Flounder in all 3 seasons was an additive model including *Dep*, *SST*, and *Sed* (Figure \@ref(fig:diag-3-fe)). When exploring the effect of temporal variability on the random fields, the 3-year field had the lowest WAIC in the Winter and Spring, while the 5-year field had the lowest WAIC in the Fall (Figure \@ref(fig:diag-rf)). Additional model selection results are available in the Model Output and Model Diagnostics sections of the interactive dashboard (<https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard>).
-
-
 <!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
 \newpage
 \blandscape
@@ -20,6 +13,38 @@ For Yellowtail Flounder, stage 1 of model selection indicated that the inclusion
 # Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
 knitr::include_graphics(pca.plt)
 ```
+
+\newpage
+
+
+<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
+\clearpage
+```{r mesh-grid, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Prediction grid used for prediction of occurrence probability (OP)."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(mesh.grid.plt)
+```
+
+<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
+\clearpage
+```{r SST-Dep-Sed, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Average Sea Surface Temperature on Georges Bank (GB) from 1997-2008 (SST in °C) in the top panel, GB bathymetry (depth in meters) in the center panel, and GB sediment type in the bottom panel."}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(sst_depth_spatial.plt)
+```
+
+
+<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
+\blandscape
+```{r gini-index, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Gini Index "}
+# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
+knitr::include_graphics(gini.index.plt)
+```
+
+## Model Selection
+
+Stage 1 of model selection resulted in a significant reduction in the number of covariates. For Atlantic Cod, sea surface temperature (*SST*) was identified as a significant covariate in the Winter and Spring, in addition depth (*Dep*) and stratification were also significant predictors in the Spring. In the Fall no covariates had a WAIC that were a significant improvement from the intercept only model (Figure \@ref(fig:diag-1-fe)). Further model selection indicated that an additive *Dep + SST* model was the preferred model in all 3 seasons for Atlantic Cod (Figures \@ref(fig:diag-2-fe) and \@ref(fig:diag-3-fe)). When exploring the effect of temporal variability on the random fields, the models using the 5-year random field had the lowest WAIC in all seasons (Figure \@ref(fig:diag-rf)).
+
+For Yellowtail Flounder, stage 1 of model selection indicated that the inclusion of *Dep* significantly improved the models in all 3 seasons (surveys), while Sediment type (*Sed*) and chlorophyll concentration (*Chl*) in the Fall had a similar impact on the model WAIC as *Dep*. As a result *SST*, *Dep*, *Chl*, and *Sed* were used to explore the development of more complex covariate models. For Yellowtail Flounder the best models in stage 2 of model selection included 2 covariates with a combination of Dep, SST, and Sed (Figure \@ref(fig:diag-2-fe)). Further model selection indicated that the preferred model for Yellowtail Flounder in all 3 seasons was an additive model including *Dep*, *SST*, and *Sed* (Figure \@ref(fig:diag-3-fe)). When exploring the effect of temporal variability on the random fields, the 3-year field had the lowest WAIC in the Winter and Spring, while the 5-year field had the lowest WAIC in the Fall (Figure \@ref(fig:diag-rf)). Additional model selection results are available in the Model Output and Model Diagnostics sections of the interactive dashboard (<https://github.com/Dave-Keith/Paper_2_SDMs/tree/master/Dashboard>).
+
 
 
 <!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
@@ -66,29 +91,6 @@ The modelled OP patterns for Yellowtail Flounder on GB are similar in Winter, Sp
 
 The SD of the Atlantic Cod prediction field in the Winter and Spring tended to be elevated in the central portion of the bank, and lowest in the south and along the edges of the prediction domain. In the Fall the Atlantic Cod prediction field SD was lowest in the south, with the low SD area expanding to central regions later in the study period (Figures \@ref(fig:pf-winter-cod-sd) - \@ref(fig:pf-fall-cod-sd)). For Yellowtail Flounder, the SD was consistently low in the part of the region with a core area that straddled the ICJ line in the Winter, Spring and Fall (Figures \@ref(fig:pf-winter-yt-sd) - \@ref(fig:pf-fall-yt-sd)). Areas surrounding this region displayed an increase in the SD, while a region in the north and along the southern flank of GB had relatively low SDs; these regions also had relatively low OPs (Figures \@ref(fig:pf-winter-yt) - \@ref(fig:pf-fall-yt) and \@ref(fig:pf-winter-yt-sd) - \@ref(fig:pf-fall-yt-sd)).
 
-
-
-<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
-\clearpage
-```{r mesh-grid, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Prediction grid used for prediction of occurrence probability (OP)."}
-# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
-knitr::include_graphics(mesh.grid.plt)
-```
-
-<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
-\clearpage
-```{r SST-Dep-Sed, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Average Sea Surface Temperature on Georges Bank (GB) from 1997-2008 (SST in °C) in the top panel, GB bathymetry (depth in meters) in the center panel, and GB sediment type in the bottom panel."}
-# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
-knitr::include_graphics(sst_depth_spatial.plt)
-```
-
-
-<!-- Make sure you have a couple lines of blank space after the figure calls or the captions don't print because that's what Rmarkdown does... --->
-\blandscape
-```{r gini-index, echo=FALSE,out.width="100%",dpi=200,fig.cap = "Gini Index "}
-# Note that out.width and out.height and dpi don't do anything for word document output in the chunck control above, they wil impact html and pdf output
-knitr::include_graphics(gini.index.plt)
-```
 
 
 <!-- PREDICTION AREA PLOTS ---><!-- PREDICTION AREA PLOTS ---><!-- PREDICTION AREA PLOTS ---><!-- PREDICTION AREA PLOTS ---><!-- PREDICTION AREA PLOTS ---><!-- PREDICTION AREA PLOTS --->

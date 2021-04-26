@@ -1,3 +1,9 @@
+<!-- Set the theme for the figures -->
+```{r theme, echo=F, include=F, paged.print=FALSE,cache =F}
+theme_set(theme_few(base_size = 12))
+```
+
+
 
 <!-- Bring in the data + figures   -->
 
