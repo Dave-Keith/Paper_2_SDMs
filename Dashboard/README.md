@@ -75,7 +75,7 @@ There are several components to the dashboard, a brief overview of the layout
 
 ### Closure Time Series
 
-**This compares the change in area above the selected OP threshold (i.e. *core area*) across eras during spawning for several area subsets including the various closures on GB**
+**This compares the change in area above the selected OP threshold (i.e. *core area*) across eras for several area subsets including the various closures on GB**
 
  - The user can change
     - *Occurrence Probability* all *OP* values > than the maximum value on the slider are used for the figures
