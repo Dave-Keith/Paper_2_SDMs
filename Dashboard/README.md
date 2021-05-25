@@ -1,6 +1,6 @@
 # Dashboard Installation and Running
 
-To run the dashboard you must install R and we recommend installing RStudio.  The dashboard has been developed using R Version 4.0.2 and requires an active internet connection to run.
+To run the dashboard you must install R and we recommend installing RStudio.  The dashboard has been developed using R Version 4.1.0 and requires an active internet connection to run.
 
 1. Download R from https://mirror.its.dal.ca/cran/ 
     - Downloads available for Linux, Mac, and Windows
@@ -36,7 +36,7 @@ There are several components to the dashboard, a brief overview of the layout
 
 ### Model Output
 
-**This includes a comprehensive overview of the covariate and random field results for the main models along with the Intercept only model.**
+**This includes a comprehensive overview of the covariate and random field results for selected models along with the Intercept only model.**
 
   - The user can select results from various combinations of
     - *Stock* (cod vs yellowtail)
@@ -61,7 +61,7 @@ There are several components to the dashboard, a brief overview of the layout
       
 ### Spatial Results 
 
-**This shows the Occurrence Probability (*OP*) results using the prediction grid for each stock using the Dep + SST 5-year random field models**
+**This shows the Occurrence Probability (*OP*) results using the prediction grid for each stock using the *final model* **
 
   - The user can change
     - *Occurrence Probability* all *OP* values > than the maximum value on the slider are used for the figures
@@ -80,8 +80,7 @@ There are several components to the dashboard, a brief overview of the layout
  - The user can change
     - *Occurrence Probability* all *OP* values > than the maximum value on the slider are used for the figures
     - *Stock* controls the stock of interest
-      - *Atlantic Cod* shows the results from the Winter (1987-2016)
-      - *Yellowtail Flounder* show the results from the Spring (1987-2016)
+    - *Season* controls the season used 
     - *Closure* controls the closure comparison
       - *None selected* compares the trends in *core area* in U.S. waters with the Canadian Offshore Scallop Fishery (COSF) *core area* trend
       - *Closed Area I* compares the trends in *core area* in U.S. waters with the CA I *core area* trend
@@ -97,8 +96,7 @@ There are several components to the dashboard, a brief overview of the layout
  - The user can change
     - *Occurrence Probability* all *OP* values > than the maximum value on the slider are used for the figures
     - *Stock* controls the stock of interest
-      - *Atlantic Cod* shows the results from the Winter (1987-2016)
-      - *Yellowtail Flounder* show the results from the Spring (1972-2016)
+    - *Season* controls the season used 
     - *Closure* controls which closures to overlay on the map
       - *None selected* shows the base map of *OP*
       - *Closed Area I* displays the location of CA I
@@ -112,7 +110,7 @@ There are several components to the dashboard, a brief overview of the layout
       - *All closures* displays all of the closures
     - *Survey Observations* slider
       1. Controls the era of the prediction field mapped
-          - For example, setting the minimum of the slider to 1988 will show the 1987-1991 prediction field
+          - For example, setting the minimum of the slider to 1988 will show the 1987-19XX prediction field
       2. Controls the years of the survey points shown in the figure
     - *Show survey point* allows the user to remove the survey points from the figure
   - There are two tabs available
