@@ -137,7 +137,7 @@ save_plot(paste0(direct.proj,"Results/Figures/mesh.png"),plt.mesh,base_width =8,
 ```
 
 ```{r enviro-plt, echo=F, include=F, paged.print=FALSE,cache =T}
-
+theme_set(theme_few(base_size = 12))
 #####
 # Figure SST and Depth Mapping don't need to run this every time, if I want to change something uncomment the below
 #####
@@ -173,7 +173,7 @@ save_plot(paste0(direct.proj,"Results/Figures/depth_sst_sed_fields.png"),p.covar
 ```
 
 ```{r model-sel, echo=F, include=F, paged.print=FALSE,cache =T}
-
+theme_set(theme_few(base_size = 12))
 #####
 # Figure Model Selection with 1 FE.
 #####
@@ -217,6 +217,7 @@ save_plot(paste0(direct.proj,"Results/Figures/Diagnostics_rf_waic.png"),plt.rf.w
 ```
 
 ```{r cod-covariate-res-plt, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 # Then I think we need to show the depth and sst relationships for each model and survey, 
 ####
 # Figure Cod Now we show the cod results, put depth and SST on the same figure. For cod we use the 5 year field and SST + Dep model
@@ -321,6 +322,7 @@ save_plot(paste0(direct.proj,"Results/Figures/Cod_fixed_effects.png"),plt.cod.fe
 ```
 
 ```{r yt-covariate-res-plot, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 ####
 # Figure YT Now we show the Yellowtail  results, put depth and SST on the same figure. Note that I use the 5 year Yellowtial model for
 # the Fall as this was the preferred RF for these data.
@@ -449,6 +451,7 @@ save_plot(paste0(direct.proj,"Results/Figures/yt_fixed_effects.png"),plt.yt.fe,b
 ```
 
 ```{r COG-plot, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 #####
 # Figure Center of gravity of the species distributions has shifted
 #####
@@ -536,15 +539,17 @@ plt.cog <-  bp.zoom + geom_label(data = cog.n.area,aes(x=x, y = y,label=substr(y
                   facet_wrap(~species + survey) + 
                   geom_errorbar(data = cog.n.area,aes(x= x,ymin=y - 3*se.y,ymax=y + 3*se.y),colour = "blue",width=0,size=1)  +
                   geom_errorbar(data = cog.n.area,aes(y= y,xmin=x - 3*se.x,xmax=x + 3*se.x),colour = "blue",width=0,size=1)  +
-                  xlab("") + ylab("") + theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
+                  xlab("") + ylab("") + theme(panel.border = element_rect(colour = "black", fill=NA, size=1),
+                                              axis.text.x = element_text( size = 10),
+                                              axis.text.y = element_text( size = 10))
 
 
-save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.tiff"),plt.cog,base_width =8,base_height =8,units='in')
-save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.png"),plt.cog,base_width =8,base_height =8,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.tiff"),plt.cog,base_width =11,base_height =11,units='in')
+save_plot(paste0(direct.proj,"Results/Figures/center_of_gravity.png"),plt.cog,base_width =11,base_height =11,units='in')
 ```
 
 ```{r area-plot, echo=F, include=F, paged.print=FALSE,cache =T}
-
+theme_set(theme_few(base_size = 12))
 ### Now how has the area changed over time...
 # Things will get more complicated here as I have 3 year and 5 year fields mixed together for Yellowtail
 # I'll need to make a more general axis for the x's somehow...
@@ -565,7 +570,7 @@ save_plot(paste0(direct.proj,"Results/Figures/Area_ts_high.png"),plt.area,base_w
 ```
 
 ```{r Can-us-area-plot, echo=F, include=F, paged.print=FALSE,cache =T}
-
+theme_set(theme_few(base_size = 12))
 ########## Canada VS US plot #######################
 
 temp <- tempfile()
@@ -628,6 +633,7 @@ save_plot(paste0(direct.proj,"Results/Figures/Area_can_vs_us_ts_high.png"),plt.a
 ```
 
 ```{r cross-fold-plot, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 #####
 # Figures for 5 fold cross validation and Prediction
 #####
@@ -645,7 +651,8 @@ mn.folds <- ggplot(fold.res) + geom_point(aes(y = mn, x= model.id,colour = type)
                                facet_wrap(~species,scales = 'free_x')+ scale_color_manual(values = cols) +
                                theme(legend.title = element_blank())
 
-rmse.folds <- ggplot(fold.res) + geom_point(aes(y = rmse, x= model.id,colour = type),position = position_dodge(width=0.3)) + ylab("RMSE") + xlab("")+
+rmse.folds <- ggplot(fold.res) + geom_point(aes(y = rmse, x= model.id,colour = type),position = position_dodge(width=0.3)) + 
+                                 ylab("RMSE") + xlab("") + ylim(c(0,NA)) +
                                  facet_wrap(~species,scales = 'free_x')  + scale_color_manual(values = cols) +
                                  geom_hline(yintercept = mn.crap.rmse,linetype = 2,color = 'red') + theme(legend.title = element_blank()) 
                                 
@@ -657,6 +664,7 @@ save_plot(paste0(direct.proj,"Results/Figures/cross_fold_validation.png"),plt.fo
 
 
 ```{r resid-vs-pred-plot, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 ## This is the final bit that will need tidied up with the new results, the predictions from all 6 models but 
 # with an intercept comparison as well.  This figure probably looks much different!
 # Now here's how well the prediction work for spawning aggregations between 2017-2019...
@@ -689,6 +697,7 @@ save_plot(paste0(direct.proj,"Results/Figures/prediction_2017_2019.png"),plt.pre
 
 
 ```{r Gini-plot, echo=F, include=F, paged.print=FALSE,cache =T}
+theme_set(theme_few(base_size = 12))
 ################################
 #### Gini Figures
 #################################
@@ -1326,7 +1335,7 @@ save_plot(paste0(direct.proj,"Results/Figures/pf_fall_yt_sd.tiff"),plt.pf.fall.y
 ```
 
 ```{r hyperparameters, echo=F, include=F, paged.print=FALSE,cache=T}
-
+theme_set(theme_few(base_size = 12))
 # Plotting the variance.
 plt.dep.var.est <- ggplot(hyper.mod.est %>% dplyr::filter(hyper == "Precision for depth")) + 
                          geom_point(aes(x = survey ,y=sqrt(1/mean))) + 

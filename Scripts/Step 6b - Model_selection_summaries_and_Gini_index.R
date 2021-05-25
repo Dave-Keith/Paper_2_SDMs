@@ -126,7 +126,7 @@ mod.diag.rf <- bind_rows(mod.diag.10 %>% filter(model.id == "Dep + SST"),
                          mod.diag.5 %>% filter(model.id == "Dep + SST"),
                          mod.diag.5 %>% filter(model.id == "Dep + SST + Sed"),
                          mod.diag.3 %>% filter(model.id == "Dep + SST"),
-                         mod.diag.3 %>% filter(model.id == "Dep + SST + Sed"),)
+                         mod.diag.3 %>% filter(model.id == "Dep + SST + Sed"))
 mod.diag.rf$era <- as.factor(mod.diag.rf$era)
 plt.min.rf.cod.waic <- mod.diag.rf %>% filter(diag == 'waic' & species== 'Cod') %>% group_by(survey) %>% summarise(min2= min(data)+2, min10 = min(data) + 10)
 plt.min.rf.cod.dic <- mod.diag.rf %>% filter(diag == 'dic'& species == 'Cod') %>% group_by(survey) %>% summarise(min2= min(data)+2, min10 = min(data) + 10)
@@ -185,6 +185,7 @@ plt.cod.waic.rf <- ggplot(mod.diag.rf %>% filter(diag == 'waic' & species == 'Co
   geom_vline(data = plt.min.rf.cod.waic, aes(xintercept = min10),color="darkgreen",linetype = "dashed",size=1) + 
   geom_vline(data = plt.min.rf.cod.waic, aes(xintercept = min2),color="blue",linetype = "dashed",size=1)  
 
+
 plt.cod.dic.rf <- ggplot(mod.diag.rf %>% filter(diag == 'dic' & species == 'Cod')) + geom_point(aes(y = era, x = data)) + 
   facet_wrap(~ survey,scales = 'free_x') +  xlab("DIC")+ ylab('Era (Cod)') +
   geom_vline(data = plt.min.rf.cod.dic, aes(xintercept = min10),color="darkgreen",linetype = "dashed",size=1) + 
@@ -213,7 +214,7 @@ plt.yt.3.5.dic.rf <- ggplot(mod.diag.rf %>% filter(diag == 'dic'& species == 'Ye
   geom_vline(data = plt.min.rf.yt.3.5.dic, aes(xintercept = min2),color="blue",linetype = "dashed",size=1)  
 
 plt.rf.waic <- plot_grid(plt.cod.waic.rf,plt.yt.5.10.waic.rf,plt.yt.3.5.waic.rf,nrow=3)
-plt.rf.dic <- plot_grid(plt.cod.waic.rf,plt.yt.5.10.dic.rf,plt.yt.3.5.dic.rf,nrow=2)
+plt.rf.dic <- plot_grid(plt.cod.waic.rf,plt.yt.5.10.dic.rf,plt.yt.3.5.dic.rf,nrow=3)
 
 #save.image("D:/Github/Paper_2_SDMs/Data/model_diagnostics_for_papers.RData")
 load("D:/Github/Paper_2_SDMs/data/model_diagnostics_for_papers.RData")
