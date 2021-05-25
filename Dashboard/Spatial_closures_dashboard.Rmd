@@ -1110,7 +1110,7 @@ radioButtons("closure","Closure",
                          "Yellowtail Closure" = "yt",
                          "All closures" = "all"))
 actionButton("go_pred",label="",icon =icon("redo"))
-#input <- list(species_pred = 'cod',year_pred = 1996:2000,prob_pred = 0.5,survey_pred = "RV_survey")
+#input <- list(species_pred = 'cod',year_pred = 2015:2016,prob_pred = 0.5,survey_pred = "RV_survey",closure = 'cod')
 
 area.era.all <- reactive({
   # Make this run if we hit our go button, see how we added an isolate command to all the places in which we were using an input$ object to stop recalcs.
@@ -1168,7 +1168,8 @@ area.era.all <- reactive({
     all.years <- data.frame(yrs = unique(preds.all$yrs)) 
     preds.all$area <- preds.all %>% st_area() %>% set_units("km^2")
     first.years <- unique(preds.all$first_year)
-
+    # This year field is annoying and pointless
+    preds.all <- preds.all[,-which(names(preds.all) =='year')]
     
     if(input$closure == 'none') 
     {
