@@ -11,7 +11,7 @@ table_1 <- read_xlsx(paste0(direct.proj,"Data/enviro_data_table.xlsx"))
 ft.note <- c("CoML obtained from  http://waves-vagues.dfo-mpo.gc.ca/Library/342505.pdf" ,
              "USGS(CONMAP) obtained from https://woodshole.er.usgs.gov/openfile/of2005-1001/htmldocs/datacatalog.htm" ,
              "USGS(SFS-SMD) obtained from https://woodshole.er.usgs.gov/project-pages/mobility/gmaine.html")
-cap <- "Environmental variables used in the analysis. Variables in \\textbf{bold} were retained after Variance Inflation Factor (VIF) analyses and were included in the linear models. Variables in \\textit{italics} were used for the Princpal Component Analysis (PCA)"
+cap <- "Environmental variables used in the analysis. Variables in \\textbf{bold} were retained after Variance Inflation Factor (VIF) analyses and were included in the linear models. Variables in \\textit{italics} were used for the Principal Component Analysis (PCA)"
 if(french) 
 {  
 cap <- "Variables environnementales utilisées dans l'analyse. Les variables \\textbf{en gras} ont été retenues après les Variance Inflation Factor (VIF) analyses et ont été incluses dans les modèles linéaires. Les variables en \\textit{italique} ont été utilisées pour les principales analysis par composantes (PCA)"

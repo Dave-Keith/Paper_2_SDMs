@@ -11,37 +11,42 @@ output:
   # bookdown::html_document2: default
   bookdown::pdf_document2:
       keep_tex: yes
-      number_sections: false
+      number_sections: no      
       toc: no
-  language: english
+      #citation_package: biblatex
+  fontsize: 12pt
+  sansfont: Liberation Sans
+  mainfont: Liberation Sans
   classoption: twocolumn
+  language: english
+  
 # End of options to set
-title: "Quantifying shifts in the distributions of Atlantic Cod and Yellowtail Flounder on Georges Bank"
+title: "Long-term shifts in Atlantic Cod and Yellowtail Flounder distributions on Georges Bank"
 author: |
-  David M. Keith^1^,
-  Jessica A. Sameoto^1^,
-  Freya M. Keyser^1^, and
-  Irene Andrushchenko^2^
-address: |
-  ^1^Bedford Institute of Oceanography\
-     Fisheries and Oceans Canada, 1 Challenger Dr.\
-     Dartmouth Nova Scotia, B2Y 4A2, Canada\
-  ^2^St. Andrews Biological Station\
-     Fisheries and Oceans Canada, 125 Marine Science Dr.\
-     St. Andrews New Brunswick, E5B 0E4, Canada\
+  David M. Keith^1,2,4^,
+  Jessica A. Sameoto^2^,
+  Freya M. Keyser^2^, and
+  Irene Andrushchenko^3^
+date: |
+  ^1^ Corresponding author - david.keith@dfo-mpo.gc.ca \
+  ^2^ Bedford Institute of Oceanography, Fisheries and Oceans Canada, Dartmouth, Nova Scotia \
+  ^3^ St. Andrews Biological Station, Fisheries and Oceans Canada, St. Andrews, New Brunswick \
+  ^4^ Dalhousie University, Halifax, Nova Scotia \
+  
+     
 month: November # fill in
 year: 2020
 report_number: nnn
 region: Maritimes Region
 author_list: "Keith, D.M., Sameoto, J.A., Keyser, F.M., Andrushchenko, I."
 abstract: |
-  A major challenge for fisheries stock assessment and management has been understanding how spatial and temporal heterogeneity impacts the population dynamics of a stock. Although fisheries data are often inherently spatial and temporal in nature; the full utilization of this information has historically been limited. Fortunately, recent computational advances have resulted in new methodologies for spatio-temporal modelling.  Here we developed temporally variable species distribution models for Yellowtail Flounder (*Limanda ferruginea*) and Atlantic Cod (*Gadus morhua*) on Georges Bank (GB) using a suite of static environmental covariates and presence-absence information from groundfish trawl surveys in Canada and the United States (U.S.). These models identified both seasonal and long term shifts in the distribution of both stock with the average sea surface temperature (SST; average from 1997-2008) and depth being significant predictors of the stocks distributions.  Significant shifts in the distribution of Atlantic Cod and Yellowtail Flounder were observed every 5 years and at least every 3 years, respectively. The core areas for both stocks shifted to the north and east throughout the study period.  For Atlantic Cod there has been a substainal decline in the size of the core area within the U.S. waters while there has been little change in Canadian waters.  In U.S. waters, the size of the Yellowtail Flounder core area declined rapidly in the late 1970s and early 1980s, but rebounded in the 1990s and early 2000s, while in Canadian waters the size of the core area was unchanged or slowly increased. Simplified models using only the random field for prediction performed as well as the models that included environmental covariates and were able to provide novel insights into both seasonal and inter-annual variability in species distributions. The incorporation of spatial information into science advice will improve the ability to sustainably manage these stocks.  
-header: "Draft working paper --- Do not cite or circulate" # or "" to omit
+  A significant challenge for fisheries management has been understanding the impacts of spatial and temporal heterogeneity on population dynamics. Fisheries data are often spatial in nature and recent computational advances have resulted in new methodologies that better utilize this spatial information. We developed temporally variable species distribution models for Yellowtail Flounder (*Limanda ferruginea*) and Atlantic Cod (*Gadus morhua*) on Georges Bank. These models identified seasonal and long-term shifts in the distribution of both stocks with the average sea surface temperature (SST; average from 1997-2008) and depth being significant predictors.  Shifts in the distributions of these stocks were observed at 3 or 5 year intervals with the core areas shifting northeast throughout the study period. For Atlantic Cod, there was a decline in the size of the core area within the U.S. waters but minimal change was observed in Canadian waters. In U.S. waters, the size of the Yellowtail Flounder core area started to decline in the late 1970s but rebounded in the 1990s-2000s; minimal change was observed in Canadian waters. Simplified models using the random field for prediction performed similarly to models that included environmental covariates. Incorporating this spatial information into science advice will facilitate sustainable management of these stocks.   
+#header: "Draft working paper --- Do not cite or circulate" # or "" to omit
 
 knit: bookdown::render_book
 link-citations: true
 bibliography: Y:/Zotero/MAR_SABHU.bib
-csl: Y:/Zotero/styles/canadian-journal-of-fisheries-and-aquatic-sciences.csl
+csl: D:/Github/styles-distribution/ices-journal-of-marine-science.csl
 # Any extra LaTeX code for the header:
 #  Note that if you need to include more than one package you will have to have them on the same line like this:
 header-includes: 
@@ -49,7 +54,9 @@ header-includes:
  - \newcommand{\blandscape}{\begin{landscape}}
  - \newcommand{\elandscape}{\end{landscape}}
  - \newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}}
-
+ - \usepackage{lineno}
+ - \linenumbers
+ - \usepackage{setspace} \doublespacing
 ---
 
 
@@ -245,6 +252,9 @@ print(french)
 # }
 if(french) options(OutDec =  ",")
 
+
+# Old 300 word abstract...
+  #A major challenge for fisheries stock assessment and management has been understanding how spatial and temporal heterogeneity impacts the population dynamics of a stock. Although fisheries data are often inherently spatial and temporal in nature; the full utilization of this information has historically been limited. Fortunately, recent computational advances have resulted in new methodologies for spatio-temporal modelling.  Here we developed temporally variable species distribution models for Yellowtail Flounder (*Limanda ferruginea*) and Atlantic Cod (*Gadus morhua*) on Georges Bank (GB) using a suite of static environmental covariates and presence-absence information from groundfish trawl surveys in Canada and the United States (U.S.). These models identified both seasonal and long term shifts in the distribution of both stocks with the average sea surface temperature (SST; average from 1997-2008) and depth being significant predictors of the stocks' distributions.  Significant shifts in the distribution of Atlantic Cod and Yellowtail Flounder were observed every 5 years and at least every 3 years, respectively. The core areas for both stocks shifted to the north and east throughout the study period.  For Atlantic Cod there has been a substantial decline in the size of the core area within the U.S. waters while there has been little change in Canadian waters.  In U.S. waters, the size of the Yellowtail Flounder core area declined rapidly in the late 1970s and early 1980s, but rebounded in the 1990s and early 2000s, while in Canadian waters the size of the core area was unchanged or slowly increased. Simplified models using only the random field for prediction performed as well as the models that included environmental covariates and were able to provide novel insights into both seasonal and inter-annual variability in species distributions. The incorporation of spatial information into science advice will facilitate the sustainable management these stocks.  
 
 ```
 
