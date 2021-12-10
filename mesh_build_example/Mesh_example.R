@@ -331,6 +331,6 @@ ggplot(mesh.sc.sf$triangles) + geom_sf(size=0.2,fill= NA) +
 
 
 ### save as R object
-#save(mesh.sc,mesh.gf,range.gf,range.sc,bound.gf.sp,bound.sc.sp,max.edge.gf,max.edge.sc,loc.sc,loc.gf,file = paste0(direct.proj,"Data/INLA_meshes.RData"))
+save(mesh.sc,mesh.gf,range.gf,range.sc,bound.gf.sp,bound.sc.sp,max.edge.gf,max.edge.sc,loc.sc.utm,loc.gf.utm,file = paste0(direct.proj,"Data/Rev_1/INLA_meshes.RData"))
 
 

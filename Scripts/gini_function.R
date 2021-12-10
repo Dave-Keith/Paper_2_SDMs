@@ -1,5 +1,5 @@
-# THis is my Gini function, which I developed because I couldn't find a function that accounted for 
-# the X-axis having unequal proprotions (Default Gini just assumes the y values are spaced evenly) 
+# This is my Gini function, which I developed because I couldn't find a function that accounted for 
+# the X-axis having unequal proprotions (Default Gini just assumes the values are spaced evenly) 
 # Which they never are for fishery data.  Nobody has really explained this very well in any of the
 # papers I've looked at so I'm not entirely convinced they did this correctly, but I am entirely 
 # convinced that I just did this correctly.
